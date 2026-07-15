@@ -12,6 +12,11 @@
   <title>Tranne il Lunedì</title>
 </head>
 <body>
+  <div id="splashScreen" class="splash-screen">
+    <img src="assets/logo.png" alt="Logo Tranne il Lunedì">
+    <strong>Tranne il Lunedì</strong>
+  </div>
+
   <div id="syncStatus" class="sync-status hidden"></div>
   <div class="app-shell">
     <header class="hero">
@@ -407,9 +412,6 @@
     </nav>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="supabase-config.js"></script>
-  <script src="app.js"></script>
 
   <div id="installGuideModal" class="modal hidden install-guide-modal" role="dialog" aria-modal="true" aria-labelledby="installGuideTitle">
     <div class="modal-card install-guide-card">
@@ -462,6 +464,10 @@
       <small class="privacy-note">Solo comunicazioni sugli appuntamenti. Nessuna pubblicità.</small>
     </div>
   </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="app.js"></script>
 
 </body>
 </html>

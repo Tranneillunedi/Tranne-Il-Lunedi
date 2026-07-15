@@ -998,6 +998,7 @@ async function openInitialPage() {
 openInitialPage();
 
 
+const splashScreen = document.getElementById('splashScreen');
 const installGuideModal = document.getElementById('installGuideModal');
 const iosInstallSteps = document.getElementById('iosInstallSteps');
 const androidInstallSteps = document.getElementById('androidInstallSteps');
@@ -1100,6 +1101,12 @@ function scheduleNotificationPrompt(delay = 1800) {
   }, delay);
 }
 
+
+function startVisualOnboarding() {
+  setTimeout(() => splashScreen?.classList.add('hide'), 1200);
+  setTimeout(() => startOnboardingTutorials(), 1650);
+}
+
 function startOnboardingTutorials() {
   if (!isStandaloneApp() && localStorage.getItem(INSTALL_TUTORIAL_KEY) !== '1') {
     setTimeout(() => openInstallTutorial(), 2200);
@@ -1159,7 +1166,7 @@ window.addEventListener('appinstalled', () => {
 document.getElementById('reopenInstallTutorial')?.addEventListener('click', () => openInstallTutorial(true));
 document.getElementById('reopenNotificationPrompt')?.addEventListener('click', () => openNotificationPrompt(true));
 
-startOnboardingTutorials();
+startVisualOnboarding();
 
 
 if ('serviceWorker' in navigator) {
