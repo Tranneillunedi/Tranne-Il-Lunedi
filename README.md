@@ -21,3 +21,11 @@ Devono premere **Registrati** una sola volta usando lo stesso numero, scegliere 
 
 ## Sicurezza
 Questa soluzione non ha costi SMS. È più sicura dell'accesso con il solo numero, ma il PIN deve essere custodito dal cliente. Per una futura reimpostazione automatica servirebbe un canale verificato, come email o SMS.
+
+
+## Novità versione 10
+- La Home è visibile subito come sfondo.
+- Se il cliente non ha effettuato l'accesso, il modulo telefono + PIN appare in sovraimpressione sopra la Home.
+- Lo sfondo della Home resta visibile con effetto sfocato/scurito.
+- Dopo accesso o registrazione, la sovraimpressione scompare automaticamente.
+- Dopo il logout si torna alla Home e ricompare la schermata di accesso in sovraimpressione.

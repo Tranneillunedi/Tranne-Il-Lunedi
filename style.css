@@ -856,3 +856,54 @@ small { display: block; margin-top: 7px; color: var(--muted); }
   font-size: .7rem;
   line-height: 1.5;
 }
+
+
+.login-overlay {
+  position: fixed;
+  z-index: 80;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px 16px calc(92px + env(safe-area-inset-bottom));
+}
+.login-overlay-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,.48);
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+}
+.login-overlay-card {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 520px);
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+  padding: 24px 20px;
+  border: 1px solid rgba(212,107,44,.28);
+  border-radius: 26px;
+  background: rgba(20,20,20,.96);
+  box-shadow: 0 26px 80px rgba(0,0,0,.58);
+  animation: overlayCardIn .32s ease both;
+}
+.login-overlay .login-logo {
+  width: 88px;
+  height: 88px;
+}
+.login-overlay .welcome-login h2 {
+  margin-bottom: 4px;
+}
+.login-overlay .subtitle {
+  margin-bottom: 0;
+}
+body.login-required {
+  overflow: hidden;
+}
+body.login-required .bottom-nav {
+  pointer-events: none;
+  filter: blur(1px);
+}
+@keyframes overlayCardIn {
+  from { opacity: 0; transform: translateY(18px) scale(.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}

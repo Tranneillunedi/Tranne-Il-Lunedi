@@ -76,6 +76,14 @@ async function showPage(name) {
 
   if (name === 'account') {
     await renderAccount();
+    if (!currentCustomer() || !customerToken()) {
+      Object.entries(pages).forEach(([key, element]) => {
+        element.classList.toggle('hidden', key !== 'home');
+      });
+      navItems.forEach(item => {
+        item.classList.toggle('active', item.dataset.go === 'home');
+      });
+    }
   }
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -468,6 +476,7 @@ const showRegisterBtn = document.getElementById('showRegisterBtn');
 const hideRegisterBtn = document.getElementById('hideRegisterBtn');
 const accountForm = document.getElementById('accountForm');
 const accountLoggedOut = document.getElementById('accountLoggedOut');
+const loginOverlay = document.getElementById('loginOverlay');
 const accountLoggedIn = document.getElementById('accountLoggedIn');
 const customerBookings = document.getElementById('customerBookings');
 const changeTimeModal = document.getElementById('changeTimeModal');
@@ -590,6 +599,7 @@ accountForm.addEventListener('submit', async event => {
 document.getElementById('logoutBtn').addEventListener('click', () => {
   localStorage.removeItem('tranneIlLunediCustomer');
   localStorage.removeItem('tranneIlLunediAccessToken');
+  showPage('home');
   renderAccount();
 });
 
@@ -619,8 +629,10 @@ async function getMyBookings() {
 async function renderAccount() {
   const customer = currentCustomer();
 
-  accountLoggedOut.classList.toggle('hidden', Boolean(customer));
+  accountLoggedOut.classList.add('hidden');
   accountLoggedIn.classList.toggle('hidden', !customer);
+  loginOverlay.classList.toggle('hidden', Boolean(customer));
+  document.body.classList.toggle('login-required', !customer);
 
   if (!customer) return;
 
@@ -768,11 +780,8 @@ installBtn.addEventListener('click', async () => {
 
 
 async function openInitialPage() {
-  if (currentCustomer() && customerToken()) {
-    await showPage('home');
-  } else {
-    await showPage('account');
-  }
+  await showPage('home');
+  await renderAccount();
 }
 
 openInitialPage();
