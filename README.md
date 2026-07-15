@@ -1,31 +1,33 @@
-# Tranne il Lunedì — versione finale telefono + PIN
+# Tranne il Lunedì — Versione 13 definitiva
 
-## Configurazione obbligatoria
-1. Apri Supabase.
-2. Vai in **SQL Editor**.
-3. Apri il file `supabase-v9-finale-pin.sql`.
-4. Copia tutto e premi **Run**.
-5. Carica i file aggiornati su GitHub.
-6. Attendi il deploy di GitHub Pages e ricarica il sito.
+## Configurazione Supabase
 
-## Accesso clienti
-- Accesso: numero di telefono + PIN personale.
-- Registrazione: nome, cognome, telefono, PIN e conferma PIN.
-- Il PIN deve contenere da 4 a 6 cifre.
-- Nel database viene conservato soltanto l'hash del PIN.
-- Il recupero PIN avviene contattando il salone al 329 459 8538.
+Esegui nello SQL Editor, in questo ordine:
 
-## Clienti di prova già presenti
-I clienti già registrati nelle versioni precedenti non hanno ancora un PIN.
-Devono premere **Registrati** una sola volta usando lo stesso numero, scegliere il PIN e completare il profilo.
+1. `supabase-v9-finale-pin.sql`
+2. `supabase-v11-admin-profile.sql`
+3. `supabase-v13-ferie-blocchi.sql`
 
-## Sicurezza
-Questa soluzione non ha costi SMS. È più sicura dell'accesso con il solo numero, ma il PIN deve essere custodito dal cliente. Per una futura reimpostazione automatica servirebbe un canale verificato, come email o SMS.
+## Funzioni comprese
 
+- Accesso con telefono e PIN.
+- Accesso in sovraimpressione sulla Home.
+- Area Agenda visibile solo all'amministratore con numero 3294598538.
+- Massimo due prenotazioni per fascia.
+- Calendario grafico e cambio orario.
+- Ferie e chiusure da una data a un'altra.
+- Blocco di singole fasce orarie.
+- Giorni e orari bloccati non prenotabili dai clienti.
+- Tutorial automatico per aggiungere la PWA alla Home.
+- Finestra per chiedere il consenso alle notifiche.
+- Notifica di prova sul telefono dopo il consenso.
 
-## Novità versione 10
-- La Home è visibile subito come sfondo.
-- Se il cliente non ha effettuato l'accesso, il modulo telefono + PIN appare in sovraimpressione sopra la Home.
-- Lo sfondo della Home resta visibile con effetto sfocato/scurito.
-- Dopo accesso o registrazione, la sovraimpressione scompare automaticamente.
-- Dopo il logout si torna alla Home e ricompare la schermata di accesso in sovraimpressione.
+## Nota importante sulle notifiche
+
+Il consenso e le notifiche locali del browser sono già presenti.
+
+Per inviare automaticamente:
+- un promemoria il giorno prima anche quando il sito è chiuso;
+- una notifica al titolare quando un cliente prenota da un altro dispositivo;
+
+serve ancora collegare un servizio push esterno, come OneSignal o Firebase. Questa parte non può essere ottenuta dal solo codice statico ospitato su GitHub Pages.

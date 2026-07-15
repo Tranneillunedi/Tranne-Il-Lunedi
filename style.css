@@ -907,3 +907,198 @@ body.login-required .bottom-nav {
   from { opacity: 0; transform: translateY(18px) scale(.98); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
+
+
+.install-guide-modal { z-index: 95; }
+.install-guide-card {
+  width: min(100%, 520px);
+  padding: 24px;
+  border-color: rgba(212,107,44,.34);
+}
+.install-guide-header {
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  gap: 14px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.install-guide-header h2 { margin-bottom: 0; }
+.install-guide-icon {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  color: var(--orange-light);
+  border-radius: 16px;
+  background: rgba(212,107,44,.13);
+  font-size: 1.65rem;
+}
+.install-steps {
+  display: grid;
+  gap: 10px;
+  margin: 18px 0;
+}
+.install-step {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  gap: 11px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 15px;
+  background: var(--surface-2);
+}
+.install-step b {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--orange-light);
+  background: rgba(212,107,44,.12);
+}
+.install-step span {
+  color: var(--muted);
+  font-size: .8rem;
+  line-height: 1.5;
+}
+.install-step strong { color: var(--text); }
+.tutorial-done-btn.full {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.notification-prompt {
+  position: fixed;
+  z-index: 92;
+  left: 50%;
+  bottom: calc(84px + env(safe-area-inset-bottom));
+  width: min(calc(100% - 24px), 590px);
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
+  gap: 11px;
+  align-items: center;
+  padding: 13px 38px 13px 13px;
+  transform: translateX(-50%);
+  border: 1px solid rgba(212,107,44,.38);
+  border-radius: 19px;
+  background: rgba(18,18,18,.97);
+  box-shadow: 0 20px 55px rgba(0,0,0,.5);
+  backdrop-filter: blur(16px);
+  animation: notificationPromptIn .35s ease both;
+}
+.notification-prompt-icon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: 14px;
+  background: rgba(212,107,44,.13);
+  font-size: 1.3rem;
+}
+.notification-prompt-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.notification-prompt-copy strong { font-size: .82rem; }
+.notification-prompt-copy span {
+  color: var(--muted);
+  font-size: .69rem;
+  line-height: 1.4;
+}
+.notification-prompt-actions {
+  display: flex;
+  gap: 7px;
+}
+.notification-primary,
+.notification-secondary {
+  min-height: 38px;
+  padding: 0 11px;
+  border-radius: 11px;
+  font-size: .7rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.notification-primary {
+  color: white;
+  border: 1px solid var(--orange);
+  background: var(--orange);
+}
+.notification-secondary {
+  color: var(--muted);
+  border: 1px solid rgba(255,255,255,.08);
+  background: #242424;
+}
+.notification-prompt-close {
+  position: absolute;
+  top: 5px;
+  right: 7px;
+  width: 27px;
+  height: 27px;
+  border: 0;
+  color: var(--muted);
+  background: transparent;
+  font-size: 1.05rem;
+}
+@keyframes notificationPromptIn {
+  from { opacity: 0; transform: translate(-50%, 18px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+@media (max-width: 520px) {
+  .notification-prompt {
+    grid-template-columns: 40px 1fr;
+    padding-right: 34px;
+  }
+  .notification-prompt-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
+}
+
+
+.admin-management {
+  display: grid;
+  gap: 16px;
+  margin-top: 24px;
+}
+.management-card {
+  padding: 18px;
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 20px;
+  background: var(--surface-2);
+}
+.management-card h3 { margin-bottom: 16px; }
+.management-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+.management-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: 14px;
+  background: rgba(0,0,0,.14);
+}
+.management-item strong,
+.management-item span { display: block; }
+.management-item span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: .72rem;
+}
+.management-delete {
+  width: 34px;
+  height: 34px;
+  color: #ffb09a;
+  border: 1px solid rgba(255,120,90,.2);
+  border-radius: 10px;
+  background: rgba(255,90,60,.08);
+}
+@media (min-width: 720px) {
+  .admin-management { grid-template-columns: 1fr 1fr; }
+}

@@ -27,7 +27,7 @@ const monthNames = [
 ];
 
 let availability = {};
-let adminPinSession = sessionStorage.getItem('tranneIlLunediAdminPin') || '';
+let currentIsAdmin = false;
 
 function notify(message, type = '') {
   syncStatus.textContent = message;
@@ -54,6 +54,12 @@ function customerToken() {
   return localStorage.getItem('tranneIlLunediAccessToken') || '';
 }
 
+function updateAdminVisibility(isAdmin) {
+  currentIsAdmin = Boolean(isAdmin);
+  const adminNavItem = document.getElementById('adminNavItem');
+  adminNavItem.classList.toggle('hidden', !currentIsAdmin);
+}
+
 async function showPage(name) {
   Object.entries(pages).forEach(([key, element]) => {
     element.classList.toggle('hidden', key !== name);
@@ -71,7 +77,11 @@ async function showPage(name) {
   }
 
   if (name === 'admin') {
-    renderAdminAccess();
+    if (!currentIsAdmin) {
+      await showPage('home');
+      return;
+    }
+    await renderAdmin();
   }
 
   if (name === 'account') {
@@ -327,47 +337,17 @@ function formatLongDate(iso) {
   }).format(new Date(`${iso}T12:00:00`));
 }
 
-function renderAdminAccess() {
-  const loginBox = document.getElementById('adminLoginBox');
-  const content = document.getElementById('adminContent');
-  loginBox.classList.toggle('hidden', Boolean(adminPinSession));
-  content.classList.toggle('hidden', !adminPinSession);
-  if (adminPinSession) renderAdmin();
-}
-
-document.getElementById('adminLoginBtn').addEventListener('click', async () => {
-  const pin = document.getElementById('adminPin').value.trim();
-  if (!pin) return;
-
-  const { error } = await supabaseClient.rpc('get_day_bookings_admin', {
-    p_admin_pin: pin,
-    p_booking_date: adminSelectedDate
-  });
-
-  if (error) {
-    alert('PIN non corretto oppure SQL versione 4 non ancora eseguito.');
-    return;
-  }
-
-  adminPinSession = pin;
-  sessionStorage.setItem('tranneIlLunediAdminPin', pin);
-  renderAdminAccess();
-});
-
 async function renderAdmin() {
-  if (!adminPinSession) return;
+  if (!currentIsAdmin || !customerToken()) return;
 
-  const { data, error } = await supabaseClient.rpc('get_day_bookings_admin', {
-    p_admin_pin: adminPinSession,
+  const { data, error } = await supabaseClient.rpc('get_day_bookings_for_admin', {
+    p_access_token: customerToken(),
     p_booking_date: adminSelectedDate
   });
 
   if (error) {
     console.error(error);
-    sessionStorage.removeItem('tranneIlLunediAdminPin');
-    adminPinSession = '';
-    renderAdminAccess();
-    alert('Sessione amministratore non valida.');
+    alert('Accesso amministratore non autorizzato.');
     return;
   }
 
@@ -447,8 +427,8 @@ async function renderAdmin() {
     item.querySelector('.delete-booking').addEventListener('click', async () => {
       if (!confirm(`Cancellare la prenotazione di ${booking.name}?`)) return;
 
-      const { error } = await supabaseClient.rpc('cancel_booking_admin', {
-        p_admin_pin: adminPinSession,
+      const { error } = await supabaseClient.rpc('cancel_booking_for_admin', {
+        p_access_token: customerToken(),
         p_booking_id: booking.id
       });
 
@@ -463,12 +443,13 @@ async function renderAdmin() {
   });
 }
 
-document.getElementById('clearBookings').textContent = 'Esci area salone';
+document.getElementById('clearBookings').textContent = 'Esci';
 document.getElementById('clearBookings').addEventListener('click', () => {
-  sessionStorage.removeItem('tranneIlLunediAdminPin');
-  adminPinSession = '';
-  document.getElementById('adminPin').value = '';
-  renderAdminAccess();
+  localStorage.removeItem('tranneIlLunediCustomer');
+  localStorage.removeItem('tranneIlLunediAccessToken');
+  updateAdminVisibility(false);
+  showPage('home');
+  renderAccount();
 });
 
 const loginForm = document.getElementById('loginForm');
@@ -532,9 +513,11 @@ loginForm.addEventListener('submit', async event => {
   localStorage.setItem('tranneIlLunediCustomer', JSON.stringify({
     firstName: record.first_name,
     lastName: record.last_name,
-    phone: record.phone
+    phone: record.phone,
+    isAdmin: Boolean(record.is_admin)
   }));
   localStorage.setItem('tranneIlLunediAccessToken', record.customer_access_token);
+  updateAdminVisibility(Boolean(record.is_admin));
 
   notify('Accesso effettuato.', 'success');
   loginForm.reset();
@@ -584,9 +567,11 @@ accountForm.addEventListener('submit', async event => {
   localStorage.setItem('tranneIlLunediCustomer', JSON.stringify({
     firstName: record.first_name,
     lastName: record.last_name,
-    phone: record.phone
+    phone: record.phone,
+    isAdmin: Boolean(record.is_admin)
   }));
   localStorage.setItem('tranneIlLunediAccessToken', record.customer_access_token);
+  updateAdminVisibility(Boolean(record.is_admin));
 
   notify('Registrazione completata e sincronizzata.', 'success');
   accountForm.reset();
@@ -599,6 +584,7 @@ accountForm.addEventListener('submit', async event => {
 document.getElementById('logoutBtn').addEventListener('click', () => {
   localStorage.removeItem('tranneIlLunediCustomer');
   localStorage.removeItem('tranneIlLunediAccessToken');
+  updateAdminVisibility(false);
   showPage('home');
   renderAccount();
 });
@@ -634,7 +620,12 @@ async function renderAccount() {
   loginOverlay.classList.toggle('hidden', Boolean(customer));
   document.body.classList.toggle('login-required', !customer);
 
-  if (!customer) return;
+  if (!customer) {
+    updateAdminVisibility(false);
+    return;
+  }
+
+  updateAdminVisibility(Boolean(customer.isAdmin));
 
   document.getElementById('accountWelcome').textContent = `Ciao, ${customer.firstName}`;
   document.getElementById('accountProfileName').textContent =
@@ -762,11 +753,230 @@ document.getElementById('confirmTimeChange').addEventListener('click', async () 
   await renderAccount();
 });
 
+
+let closedForSelectedDate = false;
+let blockedTimesForSelectedDate = new Set();
+
+function allHalfHourTimes() {
+  const values = [];
+  for (let hour = 9; hour < 20; hour++) {
+    for (const minutes of ['00', '30']) {
+      values.push(`${String(hour).padStart(2, '0')}:${minutes}`);
+    }
+  }
+  return values;
+}
+
+function fillBlockTimeSelects() {
+  const start = document.getElementById('blockStart');
+  const end = document.getElementById('blockEnd');
+  if (!start || !end || start.options.length) return;
+
+  allHalfHourTimes().forEach(value => {
+    start.add(new Option(value, value));
+    end.add(new Option(value, value));
+  });
+
+  start.value = '09:00';
+  end.value = '10:00';
+}
+
+async function loadBookingRules(date) {
+  closedForSelectedDate = false;
+  blockedTimesForSelectedDate = new Set();
+
+  if (!date) return;
+
+  const { data, error } = await supabaseClient.rpc('get_booking_rules_for_date', {
+    p_booking_date: date
+  });
+
+  if (error) {
+    console.error(error);
+    return;
+  }
+
+  const row = data?.[0];
+  closedForSelectedDate = Boolean(row?.is_closed);
+
+  (row?.blocked_times || []).forEach(time => {
+    blockedTimesForSelectedDate.add(String(time).slice(0, 5));
+  });
+}
+
+const loadAvailabilityOriginal = loadAvailability;
+loadAvailability = async function(date) {
+  await loadBookingRules(date);
+
+  if (closedForSelectedDate) {
+    availability = {};
+    makeSlots();
+
+    document.querySelectorAll('#slots .slot').forEach(button => {
+      button.disabled = true;
+      button.classList.add('unavailable');
+    });
+
+    notify('Il salone è chiuso in questa data.', 'error');
+    return;
+  }
+
+  await loadAvailabilityOriginal(date);
+
+  document.querySelectorAll('#slots .slot').forEach(button => {
+    if (blockedTimesForSelectedDate.has(button.dataset.value)) {
+      button.disabled = true;
+      button.classList.add('unavailable');
+    }
+  });
+};
+
+async function renderClosuresAndBlocks() {
+  if (!currentIsAdmin || !customerToken()) return;
+
+  const { data, error } = await supabaseClient.rpc('get_admin_closures_and_blocks', {
+    p_access_token: customerToken()
+  });
+
+  if (error) {
+    console.error(error);
+    return;
+  }
+
+  const closureList = document.getElementById('closureList');
+  const timeBlockList = document.getElementById('timeBlockList');
+
+  if (!closureList || !timeBlockList) return;
+
+  closureList.innerHTML = '';
+  timeBlockList.innerHTML = '';
+
+  const closures = (data || []).filter(item => item.item_type === 'closure');
+  const blocks = (data || []).filter(item => item.item_type === 'block');
+
+  if (!closures.length) {
+    closureList.innerHTML = '<div class="empty-state">Nessuna chiusura programmata.</div>';
+  }
+
+  closures.forEach(item => {
+    const element = document.createElement('div');
+    element.className = 'management-item';
+    element.innerHTML = `
+      <div>
+        <strong>${item.start_date} → ${item.end_date}</strong>
+        <span>${item.reason || 'Chiusura'}</span>
+      </div>
+      <button class="management-delete" type="button" aria-label="Elimina">×</button>
+    `;
+
+    element.querySelector('button').addEventListener('click', async () => {
+      if (!confirm('Eliminare questa chiusura?')) return;
+
+      const { error } = await supabaseClient.rpc('delete_admin_closure', {
+        p_access_token: customerToken(),
+        p_id: item.item_id
+      });
+
+      if (error) return alert(error.message);
+      await renderClosuresAndBlocks();
+    });
+
+    closureList.appendChild(element);
+  });
+
+  if (!blocks.length) {
+    timeBlockList.innerHTML = '<div class="empty-state">Nessuna fascia bloccata.</div>';
+  }
+
+  blocks.forEach(item => {
+    const element = document.createElement('div');
+    element.className = 'management-item';
+    element.innerHTML = `
+      <div>
+        <strong>${item.start_date} · ${String(item.start_time).slice(0, 5)}–${String(item.end_time).slice(0, 5)}</strong>
+        <span>${item.reason || 'Fascia bloccata'}</span>
+      </div>
+      <button class="management-delete" type="button" aria-label="Elimina">×</button>
+    `;
+
+    element.querySelector('button').addEventListener('click', async () => {
+      if (!confirm('Eliminare questo blocco orario?')) return;
+
+      const { error } = await supabaseClient.rpc('delete_admin_time_block', {
+        p_access_token: customerToken(),
+        p_id: item.item_id
+      });
+
+      if (error) return alert(error.message);
+      await renderClosuresAndBlocks();
+    });
+
+    timeBlockList.appendChild(element);
+  });
+}
+
+document.getElementById('saveClosureBtn')?.addEventListener('click', async () => {
+  const start = document.getElementById('closureStart').value;
+  const end = document.getElementById('closureEnd').value || start;
+  const reason = document.getElementById('closureReason').value.trim();
+
+  if (!start || !end) return alert('Seleziona le date.');
+  if (end < start) return alert('La data finale non può precedere quella iniziale.');
+
+  const { error } = await supabaseClient.rpc('create_admin_closure', {
+    p_access_token: customerToken(),
+    p_start_date: start,
+    p_end_date: end,
+    p_reason: reason
+  });
+
+  if (error) return alert(error.message);
+
+  document.getElementById('closureReason').value = '';
+  notify('Chiusura salvata.', 'success');
+  await renderClosuresAndBlocks();
+});
+
+document.getElementById('saveTimeBlockBtn')?.addEventListener('click', async () => {
+  const date = document.getElementById('blockDate').value;
+  const start = document.getElementById('blockStart').value;
+  const end = document.getElementById('blockEnd').value;
+  const reason = document.getElementById('blockReason').value.trim();
+
+  if (!date) return alert('Seleziona la data.');
+  if (end <= start) return alert('L’orario finale deve essere successivo a quello iniziale.');
+
+  const { error } = await supabaseClient.rpc('create_admin_time_block', {
+    p_access_token: customerToken(),
+    p_block_date: date,
+    p_start_time: start,
+    p_end_time: end,
+    p_reason: reason
+  });
+
+  if (error) return alert(error.message);
+
+  document.getElementById('blockReason').value = '';
+  notify('Fascia oraria bloccata.', 'success');
+  await renderClosuresAndBlocks();
+});
+
+fillBlockTimeSelects();
+
+const renderAdminOriginal = renderAdmin;
+renderAdmin = async function() {
+  await renderAdminOriginal();
+  await renderClosuresAndBlocks();
+};
+
 let deferredPrompt;
 window.addEventListener('beforeinstallprompt', event => {
   event.preventDefault();
   deferredPrompt = event;
   installBtn.classList.remove('hidden');
+  if (installGuideModal && !installGuideModal.classList.contains('hidden')) {
+    directInstallBtn.classList.remove('hidden');
+  }
 
 });
 
@@ -780,6 +990,8 @@ installBtn.addEventListener('click', async () => {
 
 
 async function openInitialPage() {
+  const customer = currentCustomer();
+  updateAdminVisibility(Boolean(customer?.isAdmin));
   await showPage('home');
   await renderAccount();
 }
@@ -793,6 +1005,7 @@ const androidInstallSteps = document.getElementById('androidInstallSteps');
 const genericInstallSteps = document.getElementById('genericInstallSteps');
 const directInstallBtn = document.getElementById('directInstallBtn');
 const installDeviceMessage = document.getElementById('installDeviceMessage');
+const notificationPrompt = document.getElementById('notificationPrompt');
 
 function isStandaloneApp() {
   return window.matchMedia('(display-mode: standalone)').matches ||
@@ -821,7 +1034,7 @@ function openInstallTutorial() {
     installDeviceMessage.textContent = 'Su iPhone bastano pochi tocchi.';
   } else if (device === 'android') {
     androidInstallSteps.classList.remove('hidden');
-    installDeviceMessage.textContent = 'Su Android puoi installarla dalla schermata Home.';
+    installDeviceMessage.textContent = 'Su Android puoi installarla come una vera app.';
     if (deferredPrompt) directInstallBtn.classList.remove('hidden');
   } else {
     genericInstallSteps.classList.remove('hidden');
@@ -838,7 +1051,7 @@ function showInstallTutorialIfUseful() {
 
   setTimeout(() => {
     if (!isStandaloneApp()) openInstallTutorial();
-  }, 2500);
+  }, 2800);
 }
 
 document.getElementById('closeInstallGuide').addEventListener('click', () => {
@@ -872,7 +1085,65 @@ window.addEventListener('appinstalled', () => {
   localStorage.setItem('tranneIlLunediInstallTutorialSeen', '1');
 });
 
+function canUseNotifications() {
+  return 'Notification' in window && 'serviceWorker' in navigator;
+}
+
+function shouldShowNotificationPrompt() {
+  if (!canUseNotifications()) return false;
+  if (Notification.permission === 'granted') return false;
+  if (Notification.permission === 'denied') return false;
+  if (localStorage.getItem('tranneIlLunediNotificationPromptDismissed') === '1') return false;
+  return true;
+}
+
+function showNotificationPromptIfUseful() {
+  if (!shouldShowNotificationPrompt()) return;
+
+  setTimeout(() => {
+    if (shouldShowNotificationPrompt() && installGuideModal.classList.contains('hidden')) {
+      notificationPrompt.classList.remove('hidden');
+    }
+  }, 7000);
+}
+
+document.getElementById('acceptNotifications').addEventListener('click', async () => {
+  if (!canUseNotifications()) {
+    alert('Questo browser non supporta le notifiche.');
+    return;
+  }
+
+  const permission = await Notification.requestPermission();
+
+  if (permission === 'granted') {
+    notificationPrompt.classList.add('hidden');
+    localStorage.setItem('tranneIlLunediNotificationsEnabled', '1');
+
+    const registration = await navigator.serviceWorker.ready;
+    registration.showNotification('Tranne il Lunedì', {
+      body: 'Notifiche attivate. Riceverai qui i promemoria degli appuntamenti.',
+      icon: 'assets/logo.png',
+      badge: 'assets/logo.png'
+    });
+  } else {
+    notificationPrompt.classList.add('hidden');
+    localStorage.setItem('tranneIlLunediNotificationPromptDismissed', '1');
+  }
+});
+
+document.getElementById('declineNotifications').addEventListener('click', () => {
+  notificationPrompt.classList.add('hidden');
+  localStorage.setItem('tranneIlLunediNotificationPromptDismissed', '1');
+});
+
+document.getElementById('closeNotificationPrompt').addEventListener('click', () => {
+  notificationPrompt.classList.add('hidden');
+  localStorage.setItem('tranneIlLunediNotificationPromptDismissed', '1');
+});
+
 showInstallTutorialIfUseful();
+showNotificationPromptIfUseful();
+
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {

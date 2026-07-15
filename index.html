@@ -140,23 +140,13 @@
 
 
       <section class="panel hidden" id="admin">
-        <div id="adminLoginBox" class="admin-login-box">
-          <p class="eyebrow">ACCESSO RISERVATO</p>
-          <h2>Area salone</h2>
-          <p class="notice">Inserisci il PIN amministratore scelto nello script SQL.</p>
-          <div class="admin-login-row">
-            <input id="adminPin" type="password" inputmode="numeric" placeholder="PIN amministratore" />
-            <button class="primary-btn" id="adminLoginBtn" type="button">Entra</button>
-          </div>
-        </div>
-
-        <div id="adminContent" class="hidden">
+        <div id="adminContent">
         <div class="admin-topbar">
           <div>
             <p class="eyebrow">AREA PERSONALE</p>
             <h2>Agenda del salone</h2>
           </div>
-          <button class="secondary-btn" id="clearBookings">Svuota dati prova</button>
+          <button class="secondary-btn" id="clearBookings">Esci</button>
         </div>
 
         <div class="admin-stats">
@@ -197,6 +187,55 @@
             </div>
           </div>
           <div id="agendaTimeline" class="agenda-timeline"></div>
+        </div>
+
+
+        <div class="admin-management">
+          <div class="management-card">
+            <p class="eyebrow">FERIE E CHIUSURE</p>
+            <h3>Blocca uno o più giorni</h3>
+            <div class="form-grid">
+              <div class="form-block">
+                <label for="closureStart">Dal</label>
+                <input id="closureStart" type="date" />
+              </div>
+              <div class="form-block">
+                <label for="closureEnd">Al</label>
+                <input id="closureEnd" type="date" />
+              </div>
+            </div>
+            <div class="form-block">
+              <label for="closureReason">Motivo</label>
+              <input id="closureReason" type="text" placeholder="Ferie, chiusura straordinaria..." />
+            </div>
+            <button id="saveClosureBtn" class="primary-btn full" type="button">Salva chiusura</button>
+            <div id="closureList" class="management-list"></div>
+          </div>
+
+          <div class="management-card">
+            <p class="eyebrow">BLOCCO ORARI</p>
+            <h3>Blocca una fascia della giornata</h3>
+            <div class="form-block">
+              <label for="blockDate">Data</label>
+              <input id="blockDate" type="date" />
+            </div>
+            <div class="form-grid">
+              <div class="form-block">
+                <label for="blockStart">Dalle</label>
+                <select id="blockStart"></select>
+              </div>
+              <div class="form-block">
+                <label for="blockEnd">Alle</label>
+                <select id="blockEnd"></select>
+              </div>
+            </div>
+            <div class="form-block">
+              <label for="blockReason">Motivo</label>
+              <input id="blockReason" type="text" placeholder="Corso, impegno, pausa..." />
+            </div>
+            <button id="saveTimeBlockBtn" class="primary-btn full" type="button">Blocca fascia</button>
+            <div id="timeBlockList" class="management-list"></div>
+          </div>
         </div>
 
         <div class="booking-list-wrap">
@@ -357,7 +396,7 @@
   <nav class="bottom-nav">
       <button data-go="home" class="nav-item active"><span>⌂</span>Home</button>
       <button data-go="booking" class="nav-item"><span>＋</span>Prenota</button>
-      <button data-go="admin" class="nav-item"><span>▣</span>Agenda</button>
+      <button data-go="admin" id="adminNavItem" class="nav-item hidden"><span>▣</span>Agenda</button>
       <button data-go="account" class="nav-item"><span>◉</span>Profilo</button>
       <button id="installBtn" class="nav-item hidden"><span>⇩</span>Installa</button>
     </nav>
@@ -394,6 +433,54 @@
       <button id="installGuideDone" class="secondary-btn full" type="button">Ho capito</button>
     </div>
   </div>
+
+
+  <div id="installGuideModal" class="modal hidden install-guide-modal" role="dialog" aria-modal="true" aria-labelledby="installGuideTitle">
+    <div class="modal-card install-guide-card">
+      <button id="closeInstallGuide" class="modal-close" type="button" aria-label="Chiudi">×</button>
+      <div class="install-guide-header">
+        <div class="install-guide-icon">⇩</div>
+        <div>
+          <p class="eyebrow">INSTALLA L'APP</p>
+          <h2 id="installGuideTitle">Aggiungila alla schermata Home</h2>
+        </div>
+      </div>
+      <p class="notice" id="installDeviceMessage">Segui questi semplici passaggi.</p>
+
+      <div id="iosInstallSteps" class="install-steps hidden">
+        <div class="install-step"><b>1</b><span>Apri questo sito con <strong>Safari</strong>.</span></div>
+        <div class="install-step"><b>2</b><span>Premi il pulsante <strong>Condividi</strong>.</span></div>
+        <div class="install-step"><b>3</b><span>Scegli <strong>Aggiungi alla schermata Home</strong>, poi premi <strong>Aggiungi</strong>.</span></div>
+      </div>
+
+      <div id="androidInstallSteps" class="install-steps hidden">
+        <div class="install-step"><b>1</b><span>Apri questo sito con <strong>Chrome</strong>.</span></div>
+        <div class="install-step"><b>2</b><span>Premi i <strong>tre puntini</strong> in alto.</span></div>
+        <div class="install-step"><b>3</b><span>Scegli <strong>Installa app</strong> oppure <strong>Aggiungi a schermata Home</strong>.</span></div>
+      </div>
+
+      <div id="genericInstallSteps" class="install-steps hidden">
+        <div class="install-step"><b>1</b><span>Apri il menu del browser.</span></div>
+        <div class="install-step"><b>2</b><span>Cerca <strong>Installa app</strong> oppure <strong>Aggiungi a schermata Home</strong>.</span></div>
+      </div>
+
+      <button id="directInstallBtn" class="primary-btn full hidden" type="button">Installa adesso</button>
+      <button id="installGuideDone" class="secondary-btn full tutorial-done-btn" type="button">Ho capito</button>
+    </div>
+  </div>
+
+  <aside id="notificationPrompt" class="notification-prompt hidden" aria-live="polite">
+    <button id="closeNotificationPrompt" class="notification-prompt-close" type="button" aria-label="Chiudi">×</button>
+    <div class="notification-prompt-icon">🔔</div>
+    <div class="notification-prompt-copy">
+      <strong>Attiva i promemoria</strong>
+      <span>Vuoi ricevere una notifica prima del tuo appuntamento?</span>
+    </div>
+    <div class="notification-prompt-actions">
+      <button id="declineNotifications" class="notification-secondary" type="button">Non ora</button>
+      <button id="acceptNotifications" class="notification-primary" type="button">Attiva</button>
+    </div>
+  </aside>
 
 </body>
 </html>
