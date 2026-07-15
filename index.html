@@ -6,8 +6,8 @@
   <meta name="theme-color" content="#0b0b0b" />
   <meta name="description" content="Prenota il tuo appuntamento da Tranne il Lunedì." />
   <link rel="manifest" href="manifest.json" />
-  <link rel="icon" href="assets/logo.png" />
-  <link rel="apple-touch-icon" href="assets/logo.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png" />
   <link rel="stylesheet" href="style.css" />
   <title>Tranne il Lunedì</title>
 </head>
@@ -263,6 +263,11 @@
             <small id="accountProfilePhone"></small>
           </div>
 
+          <div class="profile-tools">
+            <button id="reopenInstallTutorial" class="secondary-btn" type="button">Come installare l’app</button>
+            <button id="reopenNotificationPrompt" class="secondary-btn" type="button">Gestisci notifiche</button>
+          </div>
+
           <div class="booking-list-wrap">
             <p class="eyebrow">LE MIE PRENOTAZIONI</p>
             <div id="customerBookings" class="booking-list"></div>
@@ -405,41 +410,12 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js"></script>
   <script src="app.js"></script>
-<div id="installGuideModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="installGuideTitle">
-    <div class="modal-card install-guide-card">
-      <button id="closeInstallGuide" class="modal-close" type="button" aria-label="Chiudi">×</button>
-      <p class="eyebrow">INSTALLA L'APP</p>
-      <h2 id="installGuideTitle">Aggiungila alla schermata Home</h2>
-      <p class="notice" id="installDeviceMessage">Segui questi semplici passaggi.</p>
-
-      <div id="iosInstallSteps" class="install-steps hidden">
-        <div class="install-step"><b>1</b><span>Apri questo sito con <strong>Safari</strong>.</span></div>
-        <div class="install-step"><b>2</b><span>Premi il pulsante <strong>Condividi</strong>.</span></div>
-        <div class="install-step"><b>3</b><span>Scegli <strong>Aggiungi alla schermata Home</strong> e poi <strong>Aggiungi</strong>.</span></div>
-      </div>
-
-      <div id="androidInstallSteps" class="install-steps hidden">
-        <div class="install-step"><b>1</b><span>Apri questo sito con <strong>Chrome</strong>.</span></div>
-        <div class="install-step"><b>2</b><span>Premi i <strong>tre puntini</strong> in alto.</span></div>
-        <div class="install-step"><b>3</b><span>Scegli <strong>Installa app</strong> oppure <strong>Aggiungi a schermata Home</strong>.</span></div>
-      </div>
-
-      <div id="genericInstallSteps" class="install-steps hidden">
-        <div class="install-step"><b>1</b><span>Apri il menu del browser.</span></div>
-        <div class="install-step"><b>2</b><span>Cerca <strong>Installa app</strong> o <strong>Aggiungi a schermata Home</strong>.</span></div>
-      </div>
-
-      <button id="directInstallBtn" class="primary-btn full hidden" type="button">Installa adesso</button>
-      <button id="installGuideDone" class="secondary-btn full" type="button">Ho capito</button>
-    </div>
-  </div>
-
 
   <div id="installGuideModal" class="modal hidden install-guide-modal" role="dialog" aria-modal="true" aria-labelledby="installGuideTitle">
     <div class="modal-card install-guide-card">
       <button id="closeInstallGuide" class="modal-close" type="button" aria-label="Chiudi">×</button>
       <div class="install-guide-header">
-        <div class="install-guide-icon">⇩</div>
+        <img src="assets/icon-192.png" alt="" class="install-guide-logo">
         <div>
           <p class="eyebrow">INSTALLA L'APP</p>
           <h2 id="installGuideTitle">Aggiungila alla schermata Home</h2>
@@ -469,18 +445,23 @@
     </div>
   </div>
 
-  <aside id="notificationPrompt" class="notification-prompt hidden" aria-live="polite">
-    <button id="closeNotificationPrompt" class="notification-prompt-close" type="button" aria-label="Chiudi">×</button>
-    <div class="notification-prompt-icon">🔔</div>
-    <div class="notification-prompt-copy">
-      <strong>Attiva i promemoria</strong>
-      <span>Vuoi ricevere una notifica prima del tuo appuntamento?</span>
+  <div id="notificationPrompt" class="modal hidden notification-modal" role="dialog" aria-modal="true" aria-labelledby="notificationTitle">
+    <div class="modal-card notification-card">
+      <button id="closeNotificationPrompt" class="modal-close" type="button" aria-label="Chiudi">×</button>
+      <div class="notification-bell">🔔</div>
+      <p class="eyebrow">PROMEMORIA</p>
+      <h2 id="notificationTitle">Attiva le notifiche</h2>
+      <p class="notice">Ricevi conferme e avvisi relativi ai tuoi appuntamenti direttamente sul telefono.</p>
+      <div class="notification-benefits">
+        <span>✓ Conferma della prenotazione</span>
+        <span>✓ Avviso quando cambi orario</span>
+        <span>✓ Promemoria, quando collegheremo il servizio push</span>
+      </div>
+      <button id="acceptNotifications" class="primary-btn full" type="button">Attiva notifiche</button>
+      <button id="declineNotifications" class="secondary-btn full" type="button">Più tardi</button>
+      <small class="privacy-note">Solo comunicazioni sugli appuntamenti. Nessuna pubblicità.</small>
     </div>
-    <div class="notification-prompt-actions">
-      <button id="declineNotifications" class="notification-secondary" type="button">Non ora</button>
-      <button id="acceptNotifications" class="notification-primary" type="button">Attiva</button>
-    </div>
-  </aside>
+  </div>
 
 </body>
 </html>

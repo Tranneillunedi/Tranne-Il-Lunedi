@@ -1,33 +1,39 @@
-# Tranne il Lunedì — Versione 13 definitiva
+# Tranne il Lunedì — versione 14 finale
 
-## Configurazione Supabase
+Questa versione consolida tutte le funzioni precedenti e corregge i tutorial duplicati.
 
-Esegui nello SQL Editor, in questo ordine:
+## Funzioni incluse
+
+- Login e registrazione con telefono + PIN.
+- Login in sovraimpressione sulla Home.
+- Area Salone visibile solo al numero amministratore 3294598538.
+- Prenotazioni condivise tramite Supabase.
+- Massimo due clienti per fascia oraria.
+- Calendario grafico e cambio orario.
+- Agenda amministratore.
+- Ferie, chiusure straordinarie e blocco di fasce orarie.
+- Tutorial automatico per aggiungere l'app alla schermata Home.
+- Secondo tutorial per autorizzare le notifiche.
+- Pulsanti nel Profilo per riaprire entrambi i tutorial.
+- Icona Home con il logo del negozio, in formato 192, 512 e Apple Touch.
+- Notifica locale immediata per conferma e modifica orario.
+
+## Supabase
+
+Esegui nell'ordine:
 
 1. `supabase-v9-finale-pin.sql`
 2. `supabase-v11-admin-profile.sql`
 3. `supabase-v13-ferie-blocchi.sql`
 
-## Funzioni comprese
+## Aggiornamento GitHub
 
-- Accesso con telefono e PIN.
-- Accesso in sovraimpressione sulla Home.
-- Area Agenda visibile solo all'amministratore con numero 3294598538.
-- Massimo due prenotazioni per fascia.
-- Calendario grafico e cambio orario.
-- Ferie e chiusure da una data a un'altra.
-- Blocco di singole fasce orarie.
-- Giorni e orari bloccati non prenotabili dai clienti.
-- Tutorial automatico per aggiungere la PWA alla Home.
-- Finestra per chiedere il consenso alle notifiche.
-- Notifica di prova sul telefono dopo il consenso.
+Carica tutti i file di questa cartella nella radice del repository. Dopo il deploy:
 
-## Nota importante sulle notifiche
+- ricarica con Ctrl+F5 sul PC;
+- sul telefono cancella eventualmente i dati del sito o rimuovi e reinstalla la PWA;
+- il nuovo service worker usa la cache `v14`.
 
-Il consenso e le notifiche locali del browser sono già presenti.
+## Nota sulle notifiche
 
-Per inviare automaticamente:
-- un promemoria il giorno prima anche quando il sito è chiuso;
-- una notifica al titolare quando un cliente prenota da un altro dispositivo;
-
-serve ancora collegare un servizio push esterno, come OneSignal o Firebase. Questa parte non può essere ottenuta dal solo codice statico ospitato su GitHub Pages.
+Il permesso e le notifiche locali funzionano già. I promemoria programmati quando nessun dispositivo ha il sito aperto e le notifiche all'amministratore richiedono un servizio push esterno come OneSignal o Firebase.

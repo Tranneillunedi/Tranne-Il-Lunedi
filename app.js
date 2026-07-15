@@ -974,10 +974,9 @@ window.addEventListener('beforeinstallprompt', event => {
   event.preventDefault();
   deferredPrompt = event;
   installBtn.classList.remove('hidden');
-  if (installGuideModal && !installGuideModal.classList.contains('hidden')) {
+  if (typeof installGuideModal !== 'undefined' && !installGuideModal.classList.contains('hidden')) {
     directInstallBtn.classList.remove('hidden');
   }
-
 });
 
 installBtn.addEventListener('click', async () => {
@@ -1007,6 +1006,9 @@ const directInstallBtn = document.getElementById('directInstallBtn');
 const installDeviceMessage = document.getElementById('installDeviceMessage');
 const notificationPrompt = document.getElementById('notificationPrompt');
 
+const INSTALL_TUTORIAL_KEY = 'tranneIlLunediInstallTutorialSeenV14';
+const NOTIFICATION_LATER_KEY = 'tranneIlLunediNotificationLaterUntilV14';
+
 function isStandaloneApp() {
   return window.matchMedia('(display-mode: standalone)').matches ||
     window.navigator.standalone === true;
@@ -1019,8 +1021,15 @@ function installDeviceType() {
   return 'other';
 }
 
-function openInstallTutorial() {
-  if (isStandaloneApp()) return;
+function closeInstallTutorial(markSeen = true) {
+  installGuideModal.classList.add('hidden');
+  document.body.classList.remove('tutorial-open');
+  if (markSeen) localStorage.setItem(INSTALL_TUTORIAL_KEY, '1');
+  scheduleNotificationPrompt(900);
+}
+
+function openInstallTutorial(force = false) {
+  if (isStandaloneApp() && !force) return;
 
   iosInstallSteps.classList.add('hidden');
   androidInstallSteps.classList.add('hidden');
@@ -1042,48 +1051,10 @@ function openInstallTutorial() {
     if (deferredPrompt) directInstallBtn.classList.remove('hidden');
   }
 
+  notificationPrompt.classList.add('hidden');
   installGuideModal.classList.remove('hidden');
+  document.body.classList.add('tutorial-open');
 }
-
-function showInstallTutorialIfUseful() {
-  if (isStandaloneApp()) return;
-  if (localStorage.getItem('tranneIlLunediInstallTutorialSeen') === '1') return;
-
-  setTimeout(() => {
-    if (!isStandaloneApp()) openInstallTutorial();
-  }, 2800);
-}
-
-document.getElementById('closeInstallGuide').addEventListener('click', () => {
-  installGuideModal.classList.add('hidden');
-  localStorage.setItem('tranneIlLunediInstallTutorialSeen', '1');
-});
-
-document.getElementById('installGuideDone').addEventListener('click', () => {
-  installGuideModal.classList.add('hidden');
-  localStorage.setItem('tranneIlLunediInstallTutorialSeen', '1');
-});
-
-installGuideModal.addEventListener('click', event => {
-  if (event.target === installGuideModal) {
-    installGuideModal.classList.add('hidden');
-    localStorage.setItem('tranneIlLunediInstallTutorialSeen', '1');
-  }
-});
-
-directInstallBtn.addEventListener('click', async () => {
-  if (!deferredPrompt) return;
-  deferredPrompt.prompt();
-  await deferredPrompt.userChoice;
-  deferredPrompt = null;
-  directInstallBtn.classList.add('hidden');
-  localStorage.setItem('tranneIlLunediInstallTutorialSeen', '1');
-});
-
-window.addEventListener('appinstalled', () => {
-  installGuideModal.classList.add('hidden');
-  localStorage.setItem('tranneIlLunediInstallTutorialSeen', '1');
-});
 
 function canUseNotifications() {
   return 'Notification' in window && 'serviceWorker' in navigator;
@@ -1091,21 +1062,67 @@ function canUseNotifications() {
 
 function shouldShowNotificationPrompt() {
   if (!canUseNotifications()) return false;
-  if (Notification.permission === 'granted') return false;
-  if (Notification.permission === 'denied') return false;
-  if (localStorage.getItem('tranneIlLunediNotificationPromptDismissed') === '1') return false;
-  return true;
+  if (Notification.permission !== 'default') return false;
+  const laterUntil = Number(localStorage.getItem(NOTIFICATION_LATER_KEY) || 0);
+  return Date.now() >= laterUntil;
 }
 
-function showNotificationPromptIfUseful() {
+function openNotificationPrompt(force = false) {
+  if (!force && !shouldShowNotificationPrompt()) return;
+  if (!canUseNotifications()) {
+    if (force) alert('Questo browser non supporta le notifiche.');
+    return;
+  }
+  if (Notification.permission === 'denied') {
+    if (force) alert('Le notifiche sono bloccate nelle impostazioni del browser.');
+    return;
+  }
+  installGuideModal.classList.add('hidden');
+  notificationPrompt.classList.remove('hidden');
+  document.body.classList.add('tutorial-open');
+}
+
+function closeNotificationPrompt(days = 7) {
+  notificationPrompt.classList.add('hidden');
+  document.body.classList.remove('tutorial-open');
+  localStorage.setItem(
+    NOTIFICATION_LATER_KEY,
+    String(Date.now() + days * 24 * 60 * 60 * 1000)
+  );
+}
+
+function scheduleNotificationPrompt(delay = 1800) {
   if (!shouldShowNotificationPrompt()) return;
-
   setTimeout(() => {
-    if (shouldShowNotificationPrompt() && installGuideModal.classList.contains('hidden')) {
-      notificationPrompt.classList.remove('hidden');
+    if (installGuideModal.classList.contains('hidden')) {
+      openNotificationPrompt();
     }
-  }, 7000);
+  }, delay);
 }
+
+function startOnboardingTutorials() {
+  if (!isStandaloneApp() && localStorage.getItem(INSTALL_TUTORIAL_KEY) !== '1') {
+    setTimeout(() => openInstallTutorial(), 2200);
+  } else {
+    scheduleNotificationPrompt(3000);
+  }
+}
+
+document.getElementById('closeInstallGuide').addEventListener('click', () => closeInstallTutorial(true));
+document.getElementById('installGuideDone').addEventListener('click', () => closeInstallTutorial(true));
+
+installGuideModal.addEventListener('click', event => {
+  if (event.target === installGuideModal) closeInstallTutorial(true);
+});
+
+directInstallBtn.addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  installBtn.classList.add('hidden');
+  closeInstallTutorial(true);
+});
 
 document.getElementById('acceptNotifications').addEventListener('click', async () => {
   if (!canUseNotifications()) {
@@ -1114,35 +1131,35 @@ document.getElementById('acceptNotifications').addEventListener('click', async (
   }
 
   const permission = await Notification.requestPermission();
+  notificationPrompt.classList.add('hidden');
+  document.body.classList.remove('tutorial-open');
 
   if (permission === 'granted') {
-    notificationPrompt.classList.add('hidden');
-    localStorage.setItem('tranneIlLunediNotificationsEnabled', '1');
-
+    localStorage.removeItem(NOTIFICATION_LATER_KEY);
     const registration = await navigator.serviceWorker.ready;
-    registration.showNotification('Tranne il Lunedì', {
-      body: 'Notifiche attivate. Riceverai qui i promemoria degli appuntamenti.',
-      icon: 'assets/logo.png',
-      badge: 'assets/logo.png'
+    await registration.showNotification('Tranne il Lunedì', {
+      body: 'Notifiche attivate correttamente.',
+      icon: 'assets/icon-192.png',
+      badge: 'assets/icon-192.png'
     });
+    notify('Notifiche attivate.', 'success');
   } else {
-    notificationPrompt.classList.add('hidden');
-    localStorage.setItem('tranneIlLunediNotificationPromptDismissed', '1');
+    closeNotificationPrompt(30);
   }
 });
 
-document.getElementById('declineNotifications').addEventListener('click', () => {
-  notificationPrompt.classList.add('hidden');
-  localStorage.setItem('tranneIlLunediNotificationPromptDismissed', '1');
+document.getElementById('declineNotifications').addEventListener('click', () => closeNotificationPrompt(7));
+document.getElementById('closeNotificationPrompt').addEventListener('click', () => closeNotificationPrompt(7));
+
+window.addEventListener('appinstalled', () => {
+  localStorage.setItem(INSTALL_TUTORIAL_KEY, '1');
+  closeInstallTutorial(true);
 });
 
-document.getElementById('closeNotificationPrompt').addEventListener('click', () => {
-  notificationPrompt.classList.add('hidden');
-  localStorage.setItem('tranneIlLunediNotificationPromptDismissed', '1');
-});
+document.getElementById('reopenInstallTutorial')?.addEventListener('click', () => openInstallTutorial(true));
+document.getElementById('reopenNotificationPrompt')?.addEventListener('click', () => openNotificationPrompt(true));
 
-showInstallTutorialIfUseful();
-showNotificationPromptIfUseful();
+startOnboardingTutorials();
 
 
 if ('serviceWorker' in navigator) {
