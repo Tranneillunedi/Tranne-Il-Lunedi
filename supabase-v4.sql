@@ -17,7 +17,7 @@ revoke all on table public.app_private_settings from public, anon, authenticated
 
 -- CAMBIA 246810 con il PIN che vuoi usare nell'area salone.
 insert into public.app_private_settings (id, admin_pin_hash)
-values (1, crypt('171209', gen_salt('bf')))
+values (1, crypt('246810', gen_salt('bf')))
 on conflict (id) do update
 set admin_pin_hash = excluded.admin_pin_hash;
 

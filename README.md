@@ -20,3 +20,9 @@ Apri questa cartella in Visual Studio Code e avvia `index.html` con Live Server.
 
 ## Limite attuale
 La registrazione con solo nome e telefono non verifica realmente il possesso del numero. Per accedere allo stesso profilo da un nuovo dispositivo servirà, nella fase successiva, un codice SMS OTP.
+
+
+## Novità versione 5
+- All'apertura, chi non è registrato vede subito la schermata “Registrati o accedi”.
+- Dopo la registrazione l'app porta automaticamente alla Home.
+- Chi ha già un profilo salvato sul dispositivo entra direttamente nella Home.

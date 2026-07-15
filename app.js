@@ -507,6 +507,7 @@ accountForm.addEventListener('submit', async event => {
 
   notify('Registrazione completata e sincronizzata.', 'success');
   await renderAccount();
+  await showPage('home');
 });
 
 document.getElementById('logoutBtn').addEventListener('click', () => {
@@ -686,6 +687,17 @@ installBtn.addEventListener('click', async () => {
   deferredPrompt = null;
   installBtn.classList.add('hidden');
 });
+
+
+async function openInitialPage() {
+  if (currentCustomer() && customerToken()) {
+    await showPage('home');
+  } else {
+    await showPage('account');
+  }
+}
+
+openInitialPage();
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
