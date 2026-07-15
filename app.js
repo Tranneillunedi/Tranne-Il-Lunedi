@@ -463,6 +463,9 @@ document.getElementById('clearBookings').addEventListener('click', () => {
   renderAdminAccess();
 });
 
+const loginForm = document.getElementById('loginForm');
+const showRegisterBtn = document.getElementById('showRegisterBtn');
+const hideRegisterBtn = document.getElementById('hideRegisterBtn');
 const accountForm = document.getElementById('accountForm');
 const accountLoggedOut = document.getElementById('accountLoggedOut');
 const accountLoggedIn = document.getElementById('accountLoggedIn');
@@ -472,6 +475,64 @@ const changeTimeSlots = document.getElementById('changeTimeSlots');
 let bookingBeingChanged = null;
 let selectedNewTime = '';
 
+
+showRegisterBtn.addEventListener('click', () => {
+  accountForm.classList.remove('hidden');
+  showRegisterBtn.classList.add('hidden');
+  document.getElementById('accountFirstName').focus();
+});
+
+hideRegisterBtn.addEventListener('click', () => {
+  accountForm.classList.add('hidden');
+  showRegisterBtn.classList.remove('hidden');
+  document.getElementById('loginPhone').focus();
+});
+
+loginForm.addEventListener('submit', async event => {
+  event.preventDefault();
+
+  const phone = document.getElementById('loginPhone').value.trim();
+  const pin = document.getElementById('loginPin').value.trim();
+
+  if (normalizePhone(phone).length < 8) {
+    alert('Inserisci un numero di telefono valido.');
+    return;
+  }
+
+  if (!/^\d{4,6}$/.test(pin)) {
+    alert('Il PIN deve contenere da 4 a 6 cifre.');
+    return;
+  }
+
+  const { data, error } = await supabaseClient.rpc('login_customer_with_pin', {
+    p_phone: phone,
+    p_pin: pin
+  });
+
+  if (error) {
+    alert('Numero o PIN non corretti. Se non sei ancora cliente, premi “Registrati”.');
+    return;
+  }
+
+  const record = data?.[0];
+  if (!record) {
+    alert('Numero non trovato. Se non sei ancora cliente, premi “Registrati”.');
+    return;
+  }
+
+  localStorage.setItem('tranneIlLunediCustomer', JSON.stringify({
+    firstName: record.first_name,
+    lastName: record.last_name,
+    phone: record.phone
+  }));
+  localStorage.setItem('tranneIlLunediAccessToken', record.customer_access_token);
+
+  notify('Accesso effettuato.', 'success');
+  loginForm.reset();
+  await renderAccount();
+  await showPage('home');
+});
+
 accountForm.addEventListener('submit', async event => {
   event.preventDefault();
 
@@ -480,20 +541,33 @@ accountForm.addEventListener('submit', async event => {
     lastName: document.getElementById('accountLastName').value.trim(),
     phone: document.getElementById('accountPhone').value.trim()
   };
+  const pin = document.getElementById('accountPin').value.trim();
+  const pinConfirm = document.getElementById('accountPinConfirm').value.trim();
 
   if (normalizePhone(customer.phone).length < 8) {
     alert('Inserisci un numero di telefono valido.');
     return;
   }
 
-  const { data, error } = await supabaseClient.rpc('register_customer', {
+  if (!/^\d{4,6}$/.test(pin)) {
+    alert('Il PIN deve contenere da 4 a 6 cifre.');
+    return;
+  }
+
+  if (pin !== pinConfirm) {
+    alert('I due PIN non coincidono.');
+    return;
+  }
+
+  const { data, error } = await supabaseClient.rpc('register_customer_with_pin', {
     p_first_name: customer.firstName,
     p_last_name: customer.lastName,
-    p_phone: customer.phone
+    p_phone: customer.phone,
+    p_pin: pin
   });
 
   if (error) {
-    alert(error.message);
+    alert(error.message || 'Registrazione non riuscita.');
     return;
   }
 
@@ -506,6 +580,9 @@ accountForm.addEventListener('submit', async event => {
   localStorage.setItem('tranneIlLunediAccessToken', record.customer_access_token);
 
   notify('Registrazione completata e sincronizzata.', 'success');
+  accountForm.reset();
+  accountForm.classList.add('hidden');
+  showRegisterBtn.classList.remove('hidden');
   await renderAccount();
   await showPage('home');
 });
@@ -678,6 +755,7 @@ window.addEventListener('beforeinstallprompt', event => {
   event.preventDefault();
   deferredPrompt = event;
   installBtn.classList.remove('hidden');
+
 });
 
 installBtn.addEventListener('click', async () => {
@@ -698,6 +776,94 @@ async function openInitialPage() {
 }
 
 openInitialPage();
+
+
+const installGuideModal = document.getElementById('installGuideModal');
+const iosInstallSteps = document.getElementById('iosInstallSteps');
+const androidInstallSteps = document.getElementById('androidInstallSteps');
+const genericInstallSteps = document.getElementById('genericInstallSteps');
+const directInstallBtn = document.getElementById('directInstallBtn');
+const installDeviceMessage = document.getElementById('installDeviceMessage');
+
+function isStandaloneApp() {
+  return window.matchMedia('(display-mode: standalone)').matches ||
+    window.navigator.standalone === true;
+}
+
+function installDeviceType() {
+  const ua = navigator.userAgent || '';
+  if (/iPad|iPhone|iPod/.test(ua)) return 'ios';
+  if (/Android/i.test(ua)) return 'android';
+  return 'other';
+}
+
+function openInstallTutorial() {
+  if (isStandaloneApp()) return;
+
+  iosInstallSteps.classList.add('hidden');
+  androidInstallSteps.classList.add('hidden');
+  genericInstallSteps.classList.add('hidden');
+  directInstallBtn.classList.add('hidden');
+
+  const device = installDeviceType();
+
+  if (device === 'ios') {
+    iosInstallSteps.classList.remove('hidden');
+    installDeviceMessage.textContent = 'Su iPhone bastano pochi tocchi.';
+  } else if (device === 'android') {
+    androidInstallSteps.classList.remove('hidden');
+    installDeviceMessage.textContent = 'Su Android puoi installarla dalla schermata Home.';
+    if (deferredPrompt) directInstallBtn.classList.remove('hidden');
+  } else {
+    genericInstallSteps.classList.remove('hidden');
+    installDeviceMessage.textContent = 'Cerca l’opzione di installazione nel menu del browser.';
+    if (deferredPrompt) directInstallBtn.classList.remove('hidden');
+  }
+
+  installGuideModal.classList.remove('hidden');
+}
+
+function showInstallTutorialIfUseful() {
+  if (isStandaloneApp()) return;
+  if (localStorage.getItem('tranneIlLunediInstallTutorialSeen') === '1') return;
+
+  setTimeout(() => {
+    if (!isStandaloneApp()) openInstallTutorial();
+  }, 2500);
+}
+
+document.getElementById('closeInstallGuide').addEventListener('click', () => {
+  installGuideModal.classList.add('hidden');
+  localStorage.setItem('tranneIlLunediInstallTutorialSeen', '1');
+});
+
+document.getElementById('installGuideDone').addEventListener('click', () => {
+  installGuideModal.classList.add('hidden');
+  localStorage.setItem('tranneIlLunediInstallTutorialSeen', '1');
+});
+
+installGuideModal.addEventListener('click', event => {
+  if (event.target === installGuideModal) {
+    installGuideModal.classList.add('hidden');
+    localStorage.setItem('tranneIlLunediInstallTutorialSeen', '1');
+  }
+});
+
+directInstallBtn.addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  directInstallBtn.classList.add('hidden');
+  localStorage.setItem('tranneIlLunediInstallTutorialSeen', '1');
+});
+
+window.addEventListener('appinstalled', () => {
+  installGuideModal.classList.add('hidden');
+  localStorage.setItem('tranneIlLunediInstallTutorialSeen', '1');
+});
+
+showInstallTutorialIfUseful();
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {

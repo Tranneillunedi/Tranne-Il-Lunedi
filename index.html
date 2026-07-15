@@ -208,27 +208,63 @@
 
       <section class="panel" id="account">
         <div id="accountLoggedOut">
-          <p class="eyebrow">BENVENUTO</p>
-          <h2>Registrati o accedi</h2>
-          <p class="subtitle account-copy">Per usare l'app inserisci nome, cognome e numero di telefono. Non serve una password.</p>
+          <div class="welcome-login">
+            <img class="login-logo" src="assets/logo.png" alt="Logo Tranne il Lunedì" />
+            <p class="eyebrow">BENVENUTO</p>
+            <h2>Accedi al tuo profilo</h2>
+            <p class="subtitle account-copy">Inserisci il numero di telefono usato per registrarti.</p>
 
-          <form id="accountForm">
-            <div class="form-grid">
+            <form id="loginForm" class="login-main-form">
               <div class="form-block">
-                <label for="accountFirstName">Nome</label>
-                <input id="accountFirstName" type="text" autocomplete="given-name" placeholder="Mario" required />
+                <label for="loginPhone">Numero di telefono</label>
+                <input id="loginPhone" class="large-input" type="tel" inputmode="tel" autocomplete="tel" placeholder="329 123 4567" required />
               </div>
               <div class="form-block">
-                <label for="accountLastName">Cognome</label>
-                <input id="accountLastName" type="text" autocomplete="family-name" placeholder="Rossi" required />
+                <label for="loginPin">PIN personale</label>
+                <input id="loginPin" class="large-input pin-input" type="password" inputmode="numeric" autocomplete="current-password" maxlength="6" placeholder="••••" required />
               </div>
-            </div>
-            <div class="form-block">
-              <label for="accountPhone">Numero di telefono</label>
-              <input id="accountPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="329 459 8538" required />
-            </div>
-            <button class="primary-btn full" type="submit">Entra nella mia area</button>
-          </form>
+              <button class="primary-btn full" type="submit">Accedi</button>
+              <a class="forgot-pin-link" href="tel:3294598538">Hai dimenticato il PIN? Contatta il salone</a>
+            </form>
+
+            <button class="register-toggle" id="showRegisterBtn" type="button">
+              Non sei ancora cliente? <strong>Registrati</strong>
+            </button>
+
+            <form id="accountForm" class="registration-box hidden">
+              <div class="registration-heading">
+                <p class="eyebrow">NUOVO CLIENTE</p>
+                <h3>Crea il tuo profilo</h3>
+              </div>
+              <div class="form-grid">
+                <div class="form-block">
+                  <label for="accountFirstName">Nome</label>
+                  <input id="accountFirstName" type="text" autocomplete="given-name" placeholder="Mario" required />
+                </div>
+                <div class="form-block">
+                  <label for="accountLastName">Cognome</label>
+                  <input id="accountLastName" type="text" autocomplete="family-name" placeholder="Rossi" required />
+                </div>
+              </div>
+              <div class="form-block">
+                <label for="accountPhone">Numero di telefono</label>
+                <input id="accountPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="329 123 4567" required />
+              </div>
+              <div class="form-grid">
+                <div class="form-block">
+                  <label for="accountPin">Scegli un PIN</label>
+                  <input id="accountPin" type="password" inputmode="numeric" autocomplete="new-password" maxlength="6" placeholder="4–6 cifre" required />
+                </div>
+                <div class="form-block">
+                  <label for="accountPinConfirm">Conferma PIN</label>
+                  <input id="accountPinConfirm" type="password" inputmode="numeric" autocomplete="new-password" maxlength="6" placeholder="Ripeti il PIN" required />
+                </div>
+              </div>
+              <p class="pin-help">Usa un PIN di 4–6 cifre. Non verrà salvato in chiaro.</p>
+              <button class="primary-btn full" type="submit">Registrati</button>
+              <button class="text-btn" id="hideRegisterBtn" type="button">Torna all’accesso</button>
+            </form>
+          </div>
         </div>
 
         <div id="accountLoggedIn" class="hidden">
@@ -322,5 +358,34 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js"></script>
   <script src="app.js"></script>
+<div id="installGuideModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="installGuideTitle">
+    <div class="modal-card install-guide-card">
+      <button id="closeInstallGuide" class="modal-close" type="button" aria-label="Chiudi">×</button>
+      <p class="eyebrow">INSTALLA L'APP</p>
+      <h2 id="installGuideTitle">Aggiungila alla schermata Home</h2>
+      <p class="notice" id="installDeviceMessage">Segui questi semplici passaggi.</p>
+
+      <div id="iosInstallSteps" class="install-steps hidden">
+        <div class="install-step"><b>1</b><span>Apri questo sito con <strong>Safari</strong>.</span></div>
+        <div class="install-step"><b>2</b><span>Premi il pulsante <strong>Condividi</strong>.</span></div>
+        <div class="install-step"><b>3</b><span>Scegli <strong>Aggiungi alla schermata Home</strong> e poi <strong>Aggiungi</strong>.</span></div>
+      </div>
+
+      <div id="androidInstallSteps" class="install-steps hidden">
+        <div class="install-step"><b>1</b><span>Apri questo sito con <strong>Chrome</strong>.</span></div>
+        <div class="install-step"><b>2</b><span>Premi i <strong>tre puntini</strong> in alto.</span></div>
+        <div class="install-step"><b>3</b><span>Scegli <strong>Installa app</strong> oppure <strong>Aggiungi a schermata Home</strong>.</span></div>
+      </div>
+
+      <div id="genericInstallSteps" class="install-steps hidden">
+        <div class="install-step"><b>1</b><span>Apri il menu del browser.</span></div>
+        <div class="install-step"><b>2</b><span>Cerca <strong>Installa app</strong> o <strong>Aggiungi a schermata Home</strong>.</span></div>
+      </div>
+
+      <button id="directInstallBtn" class="primary-btn full hidden" type="button">Installa adesso</button>
+      <button id="installGuideDone" class="secondary-btn full" type="button">Ho capito</button>
+    </div>
+  </div>
+
 </body>
 </html>

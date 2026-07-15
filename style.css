@@ -660,3 +660,199 @@ small { display: block; margin-top: 7px; color: var(--muted); }
 }
 .sync-status.error { border-color: rgba(255,100,80,.35); }
 .sync-status.success { border-color: rgba(80,220,140,.30); }
+
+
+.welcome-login {
+  max-width: 520px;
+  margin: 0 auto;
+  text-align: center;
+}
+.login-logo {
+  width: 108px;
+  height: 108px;
+  object-fit: contain;
+  margin-bottom: 6px;
+  border-radius: 50%;
+  filter: drop-shadow(0 0 18px rgba(240,138,60,.22));
+}
+.login-main-form {
+  margin-top: 22px;
+  text-align: left;
+}
+.large-input {
+  min-height: 60px;
+  font-size: 1.05rem;
+  text-align: center;
+  letter-spacing: .03em;
+}
+.register-toggle,
+.text-btn {
+  border: 0;
+  background: transparent;
+}
+.register-toggle {
+  margin-top: 20px;
+  color: var(--muted);
+  font-size: .8rem;
+}
+.register-toggle strong {
+  color: var(--orange-light);
+}
+.registration-box {
+  margin-top: 22px;
+  padding: 18px;
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: rgba(212,107,44,.06);
+  animation: fadeUp .28s ease both;
+}
+.registration-heading {
+  margin-bottom: 16px;
+  text-align: center;
+}
+.text-btn {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 8px;
+  color: var(--muted);
+  font-size: .76rem;
+}
+
+
+.install-hint {
+  position: fixed;
+  z-index: 45;
+  left: 50%;
+  bottom: calc(82px + env(safe-area-inset-bottom));
+  width: min(calc(100% - 24px), 560px);
+  display: grid;
+  grid-template-columns: 42px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 11px 38px 11px 11px;
+  transform: translateX(-50%);
+  border: 1px solid rgba(212,107,44,.38);
+  border-radius: 18px;
+  background: rgba(18,18,18,.96);
+  box-shadow: 0 18px 50px rgba(0,0,0,.48);
+  backdrop-filter: blur(14px);
+  animation: installHintIn .35s ease both;
+}
+.install-hint-icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 13px;
+  color: var(--orange-light);
+  background: rgba(212,107,44,.12);
+  font-size: 1.4rem;
+}
+.install-hint-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.install-hint-copy strong {
+  font-size: .8rem;
+}
+.install-hint-copy span {
+  color: var(--muted);
+  font-size: .68rem;
+}
+.install-hint-action {
+  padding: 9px 11px;
+  border: 1px solid var(--orange);
+  border-radius: 11px;
+  color: white;
+  background: rgba(212,107,44,.12);
+  font-size: .7rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.install-hint-close {
+  position: absolute;
+  top: 5px;
+  right: 7px;
+  width: 27px;
+  height: 27px;
+  border: 0;
+  color: var(--muted);
+  background: transparent;
+  font-size: 1.05rem;
+}
+.install-guide-card {
+  max-width: 520px;
+}
+.install-steps {
+  display: grid;
+  gap: 10px;
+  margin: 18px 0;
+}
+.install-step {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  gap: 11px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 15px;
+  background: var(--surface-2);
+}
+.install-step b {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--orange-light);
+  background: rgba(212,107,44,.12);
+}
+.install-step span {
+  color: var(--muted);
+  font-size: .8rem;
+  line-height: 1.5;
+}
+.install-step strong {
+  color: var(--text);
+}
+@keyframes installHintIn {
+  from { opacity: 0; transform: translate(-50%, 18px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+@media (max-width: 430px) {
+  .install-hint {
+    grid-template-columns: 36px 1fr auto;
+  }
+  .install-hint-icon {
+    width: 36px;
+    height: 36px;
+  }
+  .install-hint-copy span {
+    display: none;
+  }
+}
+
+
+.pin-input {
+  letter-spacing: .28em;
+}
+.forgot-pin-link {
+  display: block;
+  margin-top: 14px;
+  color: var(--muted);
+  text-align: center;
+  text-decoration: none;
+  font-size: .73rem;
+}
+.forgot-pin-link:hover {
+  color: var(--orange-light);
+}
+.pin-help {
+  margin: -6px 0 10px;
+  color: var(--muted);
+  font-size: .7rem;
+  line-height: 1.5;
+}
