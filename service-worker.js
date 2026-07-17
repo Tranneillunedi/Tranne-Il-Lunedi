@@ -1,10 +1,12 @@
-const CACHE_NAME = 'tranne-il-lunedi-v16-manual-booking';
+const CACHE_NAME = 'tranne-il-lunedi-v17-onesignal';
 const FILES = [
   './',
   './index.html',
   './style.css',
   './app.js',
   './supabase-config.js',
+  './onesignal.js',
+  './onesignal/OneSignalSDKWorker.js',
   './manifest.json',
   './assets/logo.png',
   './assets/icon-192.png',

@@ -56,6 +56,10 @@ function customerToken() {
 
 function updateAdminVisibility(isAdmin) {
   currentIsAdmin = Boolean(isAdmin);
+  const customer = currentCustomer();
+  if (customer && window.syncTranneOneSignalProfile) {
+    window.syncTranneOneSignalProfile({ ...customer, isAdmin: currentIsAdmin });
+  }
   const adminNavItem = document.getElementById('adminNavItem');
   adminNavItem.classList.toggle('hidden', !currentIsAdmin);
 }
@@ -1136,26 +1140,36 @@ directInstallBtn.addEventListener('click', async () => {
 });
 
 document.getElementById('acceptNotifications').addEventListener('click', async () => {
-  if (!canUseNotifications()) {
-    alert('Questo browser non supporta le notifiche.');
-    return;
-  }
+  const button = document.getElementById('acceptNotifications');
+  button.disabled = true;
+  button.textContent = 'Attivazione…';
 
-  const permission = await Notification.requestPermission();
-  notificationPrompt.classList.add('hidden');
-  document.body.classList.remove('tutorial-open');
+  try {
+    if (!window.requestTrannePushPermission) {
+      throw new Error('Il servizio notifiche non è ancora disponibile. Ricarica la pagina.');
+    }
 
-  if (permission === 'granted') {
-    localStorage.removeItem(NOTIFICATION_LATER_KEY);
-    const registration = await navigator.serviceWorker.ready;
-    await registration.showNotification('Tranne il Lunedì', {
-      body: 'Notifiche attivate correttamente.',
-      icon: 'assets/icon-192.png',
-      badge: 'assets/icon-192.png'
-    });
-    notify('Notifiche attivate.', 'success');
-  } else {
-    closeNotificationPrompt(30);
+    const granted = await window.requestTrannePushPermission();
+    notificationPrompt.classList.add('hidden');
+    document.body.classList.remove('tutorial-open');
+
+    if (granted) {
+      localStorage.removeItem(NOTIFICATION_LATER_KEY);
+      const customer = currentCustomer();
+      if (customer && window.syncTranneOneSignalProfile) {
+        await window.syncTranneOneSignalProfile(customer);
+      }
+      notify('Notifiche push attivate.', 'success');
+    } else {
+      closeNotificationPrompt(30);
+      alert('Permesso notifiche non concesso. Puoi abilitarlo dalle impostazioni del browser.');
+    }
+  } catch (error) {
+    console.error(error);
+    alert(error.message || 'Impossibile attivare le notifiche.');
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Attiva notifiche';
   }
 });
 
@@ -1192,7 +1206,15 @@ window.addEventListener('load', () => {
     }
   }, 4200);
 });
-// notification tutorial fallback v15
+// Sincronizza il profilo appena OneSignal è pronto.
+window.addEventListener('tranne:onesignal-ready', () => {
+  const customer = currentCustomer();
+  if (customer && window.syncTranneOneSignalProfile) {
+    window.syncTranneOneSignalProfile(customer);
+  }
+});
+
+// notification tutorial fallback v17
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
