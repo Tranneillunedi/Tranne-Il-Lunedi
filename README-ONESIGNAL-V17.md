@@ -12,3 +12,7 @@ Carica tutti i file e le cartelle di questa versione, inclusa la cartella `onesi
 
 ## Importante
 Questa patch registra i telefoni e abilita la ricezione delle push. L'invio automatico quando un cliente prenota richiede il passaggio successivo: una funzione server Supabase Edge Function con la OneSignal App API Key salvata nei Secrets. La chiave privata non va mai inserita nei file pubblici di GitHub.
+
+
+## Correzione v17.1
+La coda `OneSignalDeferred` viene ora creata prima del caricamento del Web SDK. È stato inoltre aggiunto un controllo di avvio con attesa fino a 15 secondi e il percorso assoluto del service worker per GitHub Pages.

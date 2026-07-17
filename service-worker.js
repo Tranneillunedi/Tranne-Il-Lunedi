@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tranne-il-lunedi-v17-onesignal';
+const CACHE_NAME = 'tranne-il-lunedi-v17-1-onesignal-fix';
 const FILES = [
   './',
   './index.html',
