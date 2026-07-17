@@ -14,9 +14,10 @@ window.OneSignalDeferred.push(async function (OneSignal) {
   try {
     await OneSignal.init({
       appId: "6547826d-804c-4a15-aa8b-3b6627ec28c2",
-      serviceWorkerPath: "/Tranne-Il-Lunedi/onesignal/OneSignalSDKWorker.js",
-      serviceWorkerParam: {
-        scope: "/Tranne-Il-Lunedi/onesignal/"
+     serviceWorkerPath: "onesignal/OneSignalSDKWorker.js",
+serviceWorkerParam: {
+  scope: "/Tranne-Il-Lunedi/onesignal/"
+},
       },
       autoResubscribe: true,
       notifyButton: { enable: false },
