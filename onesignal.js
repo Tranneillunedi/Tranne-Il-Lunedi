@@ -67,20 +67,37 @@ window.requestTrannePushPermission = async function () {
     : supportedValue !== false;
 
   if (!supported) {
-    throw new Error('Questo dispositivo o browser non supporta le notifiche push. Su iPhone apri l’app dalla schermata Home.');
+    throw new Error('Questo dispositivo o browser non supporta le notifiche push.');
   }
 
   await OneSignal.Notifications.requestPermission();
 
-  if (OneSignal.Notifications.permission && OneSignal.User?.PushSubscription) {
-    await OneSignal.User.PushSubscription.optIn();
+  if (!OneSignal.Notifications.permission) {
+    throw new Error('Il permesso notifiche non è stato concesso.');
   }
 
-  const optedIn = Boolean(OneSignal.User?.PushSubscription?.optedIn);
-  window.dispatchEvent(new CustomEvent('tranne:push-status', {
-    detail: { permission: OneSignal.Notifications.permission, optedIn }
-  }));
-  return Boolean(OneSignal.Notifications.permission && optedIn);
+  await OneSignal.User.PushSubscription.optIn();
+
+  await new Promise(resolve => setTimeout(resolve, 2000));
+
+  const optedIn = Boolean(OneSignal.User.PushSubscription.optedIn);
+  const subscriptionId = OneSignal.User.PushSubscription.id;
+  const token = OneSignal.User.PushSubscription.token;
+
+  console.log('OneSignal stato:', {
+    permission: OneSignal.Notifications.permission,
+    optedIn,
+    subscriptionId,
+    token
+  });
+
+  if (!optedIn || !subscriptionId || !token) {
+    throw new Error(
+      'Permesso concesso, ma OneSignal non ha generato il token push.'
+    );
+  }
+
+  return true;
 };
 
 window.syncTranneOneSignalProfile = async function (customer) {
