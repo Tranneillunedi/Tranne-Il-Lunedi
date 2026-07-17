@@ -358,7 +358,9 @@ async function renderAdmin() {
     service: row.service,
     price: Number(row.price),
     date: row.booking_date,
-    time: String(row.booking_time).slice(0, 5)
+    time: String(row.booking_time).slice(0, 5),
+    source: row.booking_source || 'customer',
+    notes: row.notes || ''
   })).sort((a, b) => a.time.localeCompare(b.time));
 
   document.getElementById('agendaDateTitle').textContent = formatLongDate(adminSelectedDate);
@@ -393,7 +395,7 @@ async function renderAdmin() {
         const booking = atTime[slot];
         if (booking) {
           cell.classList.add('filled');
-          cell.innerHTML = `<strong>${booking.name}</strong><span>${booking.service} · ${booking.phone}</span>`;
+          cell.innerHTML = `<strong>${booking.name}</strong><span>${booking.service} · ${booking.phone || 'senza telefono'}</span>${booking.source === 'salon' ? '<small class="booking-origin">SALONE</small>' : ''}`;
         } else {
           cell.innerHTML = `<span>Libero</span>`;
         }
@@ -419,7 +421,9 @@ async function renderAdmin() {
       <div class="booking-time">${booking.time}</div>
       <div>
         <strong>${booking.name}</strong>
-        <p>${booking.service} · ${booking.price} € · ${booking.phone}</p>
+        <p>${booking.service} · ${booking.price} € · ${booking.phone || 'senza telefono'}</p>
+        ${booking.source === 'salon' ? '<span class="booking-origin">Inserita dal salone</span>' : ''}
+        ${booking.notes ? `<p>Note: ${booking.notes}</p>` : ''}
       </div>
       <button class="delete-booking" type="button" aria-label="Elimina prenotazione">×</button>
     `;
@@ -1169,8 +1173,117 @@ document.getElementById('reopenNotificationPrompt')?.addEventListener('click', (
 startVisualOnboarding();
 
 
+
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    const promptElement = document.getElementById('notificationPrompt');
+    const installElement = document.getElementById('installGuideModal');
+
+    if (
+      promptElement &&
+      promptElement.classList.contains('hidden') &&
+      (!installElement || installElement.classList.contains('hidden')) &&
+      'Notification' in window &&
+      Notification.permission === 'default' &&
+      sessionStorage.getItem('tranneIlLunediNotificationShownThisSession') !== '1'
+    ) {
+      sessionStorage.setItem('tranneIlLunediNotificationShownThisSession', '1');
+      promptElement.classList.remove('hidden');
+    }
+  }, 4200);
+});
+// notification tutorial fallback v15
+
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('service-worker.js').catch(console.error);
   });
 }
+
+
+// =========================================================
+// VERSIONE 16 — PRENOTAZIONI INSERITE DAL SALONE
+// =========================================================
+const manualBookingModal = document.getElementById('manualBookingModal');
+const manualBookingForm = document.getElementById('manualBookingForm');
+const manualDate = document.getElementById('manualDate');
+const manualTime = document.getElementById('manualTime');
+let adminRefreshTimer = null;
+
+function fillManualTimes() {
+  manualTime.innerHTML = '<option value="">Seleziona orario</option>';
+  allHalfHourTimes().forEach(time => {
+    const option = document.createElement('option');
+    option.value = time;
+    option.textContent = time;
+    manualTime.appendChild(option);
+  });
+}
+
+function openManualBookingModal() {
+  manualBookingForm.reset();
+  manualDate.value = adminSelectedDate || localISO(new Date());
+  fillManualTimes();
+  manualBookingModal.classList.remove('hidden');
+  document.body.classList.add('tutorial-open');
+  document.getElementById('manualFirstName').focus();
+}
+
+function closeManualBookingModal() {
+  manualBookingModal.classList.add('hidden');
+  document.body.classList.remove('tutorial-open');
+}
+
+document.getElementById('openManualBooking')?.addEventListener('click', openManualBookingModal);
+document.getElementById('closeManualBooking')?.addEventListener('click', closeManualBookingModal);
+manualBookingModal?.addEventListener('click', event => {
+  if (event.target === manualBookingModal) closeManualBookingModal();
+});
+
+manualBookingForm?.addEventListener('submit', async event => {
+  event.preventDefault();
+  const saveButton = document.getElementById('saveManualBooking');
+  saveButton.disabled = true;
+  saveButton.textContent = 'Salvataggio…';
+
+  const { data, error } = await supabaseClient.rpc('create_booking_for_admin', {
+    p_access_token: customerToken(),
+    p_first_name: document.getElementById('manualFirstName').value.trim(),
+    p_last_name: document.getElementById('manualLastName').value.trim(),
+    p_phone: document.getElementById('manualPhone').value.trim(),
+    p_service: document.getElementById('manualService').value,
+    p_booking_date: manualDate.value,
+    p_booking_time: manualTime.value,
+    p_notes: document.getElementById('manualNotes').value.trim()
+  });
+
+  saveButton.disabled = false;
+  saveButton.textContent = 'Salva prenotazione';
+
+  if (error) {
+    console.error(error);
+    alert(error.message || 'Impossibile salvare la prenotazione.');
+    return;
+  }
+
+  adminSelectedDate = manualDate.value;
+  adminCalendar.setSelected(adminSelectedDate);
+  closeManualBookingModal();
+  notify('Cliente aggiunto in agenda.', 'success');
+  await renderAdmin();
+});
+
+// Aggiornamento automatico dell'agenda mentre l'Area Salone è aperta.
+// Il controllo periodico è affidabile anche se Realtime non è abilitato sulla tabella.
+setInterval(() => {
+  if (currentIsAdmin && !pages.admin.classList.contains('hidden') && document.visibilityState === 'visible') {
+    clearTimeout(adminRefreshTimer);
+    adminRefreshTimer = setTimeout(() => renderAdmin(), 250);
+  }
+}, 15000);
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && currentIsAdmin && !pages.admin.classList.contains('hidden')) {
+    renderAdmin();
+  }
+});

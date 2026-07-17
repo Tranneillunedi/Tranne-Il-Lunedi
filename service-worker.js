@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tranne-il-lunedi-v14-fix';
+const CACHE_NAME = 'tranne-il-lunedi-v16-manual-booking';
 const FILES = [
   './',
   './index.html',

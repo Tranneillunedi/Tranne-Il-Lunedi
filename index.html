@@ -169,6 +169,15 @@
           </article>
         </div>
 
+
+        <div class="manual-booking-bar">
+          <div>
+            <p class="eyebrow">PRENOTAZIONI TELEFONICHE</p>
+            <h3>Aggiungi un cliente a mano</h3>
+          </div>
+          <button id="openManualBooking" class="primary-btn" type="button">＋ Aggiungi cliente</button>
+        </div>
+
         <div class="form-block">
           <label>Giornata da visualizzare</label>
           <div class="calendar-card compact">
@@ -462,6 +471,30 @@
       <button id="acceptNotifications" class="primary-btn full" type="button">Attiva notifiche</button>
       <button id="declineNotifications" class="secondary-btn full" type="button">Più tardi</button>
       <small class="privacy-note">Solo comunicazioni sugli appuntamenti. Nessuna pubblicità.</small>
+    </div>
+  </div>
+
+
+  <div id="manualBookingModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="manualBookingTitle">
+    <div class="modal-card manual-booking-modal-card">
+      <button id="closeManualBooking" class="modal-close" type="button" aria-label="Chiudi">×</button>
+      <p class="eyebrow">AREA SALONE</p>
+      <h2 id="manualBookingTitle">Aggiungi cliente</h2>
+      <p class="notice">Per appuntamenti presi al telefono o direttamente in salone.</p>
+      <form id="manualBookingForm">
+        <div class="form-grid">
+          <div class="form-block"><label for="manualFirstName">Nome</label><input id="manualFirstName" required minlength="2" autocomplete="given-name"></div>
+          <div class="form-block"><label for="manualLastName">Cognome</label><input id="manualLastName" required minlength="2" autocomplete="family-name"></div>
+        </div>
+        <div class="form-block"><label for="manualPhone">Telefono <small>(facoltativo)</small></label><input id="manualPhone" inputmode="tel" autocomplete="tel" placeholder="Es. 333 1234567"></div>
+        <div class="form-block"><label for="manualService">Servizio</label><select id="manualService" required><option value="Taglio">Taglio — 17 €</option><option value="Completo">Completo — 22 €</option><option value="Barba">Barba — 5 €</option></select></div>
+        <div class="form-grid">
+          <div class="form-block"><label for="manualDate">Data</label><input id="manualDate" type="date" required></div>
+          <div class="form-block"><label for="manualTime">Ora</label><select id="manualTime" required></select></div>
+        </div>
+        <div class="form-block"><label for="manualNotes">Note <small>(facoltative)</small></label><textarea id="manualNotes" rows="3" maxlength="300" placeholder="Preferenze o informazioni utili"></textarea></div>
+        <button id="saveManualBooking" class="primary-btn full" type="submit">Salva prenotazione</button>
+      </form>
     </div>
   </div>
 

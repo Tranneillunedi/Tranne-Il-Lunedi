@@ -1217,3 +1217,14 @@ body.tutorial-open {
   65% { opacity: 1; transform: scale(1.06) rotate(1deg); }
   100% { transform: scale(1) rotate(0); }
 }
+
+
+/* Versione 16 — inserimento manuale */
+.manual-booking-bar { display:flex; align-items:center; justify-content:space-between; gap:18px; padding:20px; margin:18px 0 24px; border:1px solid rgba(212,107,44,.35); border-radius:20px; background:linear-gradient(135deg,rgba(212,107,44,.13),rgba(0,0,0,.2)); }
+.manual-booking-bar h3 { margin:3px 0 0; }
+.manual-booking-bar .primary-btn { flex:0 0 auto; }
+.manual-booking-modal-card { max-width:620px; max-height:92vh; overflow:auto; }
+.manual-booking-modal-card textarea { width:100%; resize:vertical; min-height:84px; }
+.booking-origin { display:inline-flex; margin-top:6px; padding:4px 8px; border-radius:999px; font-size:.72rem; font-weight:800; letter-spacing:.04em; color:#fff; background:rgba(212,107,44,.8); }
+.agenda-slot .booking-origin { font-size:.62rem; padding:2px 6px; }
+@media (max-width:650px){ .manual-booking-bar{align-items:stretch;flex-direction:column}.manual-booking-bar .primary-btn{width:100%} }

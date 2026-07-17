@@ -37,3 +37,10 @@ Carica tutti i file di questa cartella nella radice del repository. Dopo il depl
 ## Nota sulle notifiche
 
 Il permesso e le notifiche locali funzionano già. I promemoria programmati quando nessun dispositivo ha il sito aperto e le notifiche all'amministratore richiedono un servizio push esterno come OneSignal o Firebase.
+
+## Versione 16 — prenotazioni manuali
+1. Esegui `supabase-v16-prenotazioni-manuali.sql` nello SQL Editor di Supabase.
+2. Carica tutti i file sul repository GitHub sostituendo quelli precedenti.
+3. Apri l'Area Salone e usa **Aggiungi cliente**.
+
+L'agenda si aggiorna automaticamente ogni 15 secondi mentre è aperta e subito quando torni nell'app.
