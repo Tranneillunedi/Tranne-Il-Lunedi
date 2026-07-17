@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tranne-il-lunedi-v17-1-onesignal-fix';
+const CACHE_NAME = 'tranne-il-lunedi-v18';
 const FILES = [
   './',
   './index.html',
@@ -7,6 +7,7 @@ const FILES = [
   './supabase-config.js',
   './onesignal.js',
   './onesignal/OneSignalSDKWorker.js',
+  './onesignal/OneSignalSDKUpdaterWorker.js',
   './manifest.json',
   './assets/logo.png',
   './assets/icon-192.png',
