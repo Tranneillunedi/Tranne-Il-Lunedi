@@ -1,4 +1,4 @@
-// OneSignal Web Push — Tranne il Lunedì v18
+// OneSignal Web Push — Tranne il Lunedì v21
 // La chiave API privata NON deve mai essere inserita in questo file.
 window.OneSignalDeferred = window.OneSignalDeferred || [];
 window.tranneOneSignalReady = false;
@@ -10,14 +10,16 @@ window.tranneOneSignalReadyPromise = new Promise((resolve) => {
   resolveTranneOneSignal = resolve;
 });
 
+const ONESIGNAL_APP_ID = '6547826d-804c-4a15-aa8b-3b6627ec28c2';
+const ONESIGNAL_WORKER_PATH = '/Tranne-Il-Lunedi/onesignal/OneSignalSDKWorker.js';
+const ONESIGNAL_WORKER_SCOPE = '/Tranne-Il-Lunedi/onesignal/';
+
 window.OneSignalDeferred.push(async function (OneSignal) {
   try {
     await OneSignal.init({
-      appId: "6547826d-804c-4a15-aa8b-3b6627ec28c2",
-      serviceWorkerPath: "onesignal/OneSignalSDKWorkerV2.js",
-      serviceWorkerParam: {
-        scope: "/Tranne-Il-Lunedi/onesignal/"
-      },
+      appId: ONESIGNAL_APP_ID,
+      serviceWorkerPath: ONESIGNAL_WORKER_PATH,
+      serviceWorkerParam: { scope: ONESIGNAL_WORKER_SCOPE },
       autoResubscribe: true,
       notifyButton: { enable: false },
       welcomeNotification: { disable: true },
@@ -55,8 +57,64 @@ window.waitForTranneOneSignal = async function (timeoutMs = 15000) {
   const detail = window.tranneOneSignalError?.message
     ? ` (${window.tranneOneSignalError.message})`
     : '';
-  throw new Error(`OneSignal non si è avviato. Chiudi e riapri l'app dopo averla aggiornata${detail}.`);
+  throw new Error(`OneSignal non si è avviato${detail}.`);
 };
+
+function readPushState(OneSignal) {
+  const subscription = OneSignal.User?.PushSubscription;
+  return {
+    permission: Boolean(OneSignal.Notifications?.permission),
+    optedIn: Boolean(subscription?.optedIn),
+    subscriptionId: subscription?.id || null,
+    token: subscription?.token || null
+  };
+}
+
+async function waitForPushSubscription(OneSignal, timeoutMs = 15000) {
+  const current = readPushState(OneSignal);
+  if (current.optedIn && current.subscriptionId && current.token) return current;
+
+  return new Promise((resolve, reject) => {
+    const subscription = OneSignal.User.PushSubscription;
+    let intervalId;
+
+    const cleanup = () => {
+      clearTimeout(timeoutId);
+      clearInterval(intervalId);
+      try {
+        subscription.removeEventListener('change', onChange);
+      } catch (_) {
+        // Alcune versioni del browser non espongono removeEventListener.
+      }
+    };
+
+    const finishIfReady = () => {
+      const state = readPushState(OneSignal);
+      if (state.optedIn && state.subscriptionId && state.token) {
+        cleanup();
+        resolve(state);
+        return true;
+      }
+      return false;
+    };
+
+    const onChange = () => finishIfReady();
+
+    try {
+      subscription.addEventListener('change', onChange);
+    } catch (_) {
+      // Il controllo periodico sottostante rimane attivo come fallback.
+    }
+
+    intervalId = setInterval(finishIfReady, 500);
+    const timeoutId = setTimeout(() => {
+      cleanup();
+      reject(new Error('Permesso concesso, ma il browser non ha creato la sottoscrizione push.'));
+    }, timeoutMs);
+
+    finishIfReady();
+  });
+}
 
 window.requestTrannePushPermission = async function () {
   const OneSignal = await window.waitForTranneOneSignal();
@@ -77,26 +135,9 @@ window.requestTrannePushPermission = async function () {
   }
 
   await OneSignal.User.PushSubscription.optIn();
+  const state = await waitForPushSubscription(OneSignal);
 
-  await new Promise(resolve => setTimeout(resolve, 2000));
-
-  const optedIn = Boolean(OneSignal.User.PushSubscription.optedIn);
-  const subscriptionId = OneSignal.User.PushSubscription.id;
-  const token = OneSignal.User.PushSubscription.token;
-
-  console.log('OneSignal stato:', {
-    permission: OneSignal.Notifications.permission,
-    optedIn,
-    subscriptionId,
-    token
-  });
-
-  if (!optedIn || !subscriptionId || !token) {
-    throw new Error(
-      'Permesso concesso, ma OneSignal non ha generato il token push.'
-    );
-  }
-
+  console.log('OneSignal stato:', state);
   return true;
 };
 
@@ -127,18 +168,18 @@ window.logoutTranneOneSignal = async function () {
   }
 };
 
-
 window.getTrannePushStatus = async function () {
   try {
     const OneSignal = await window.waitForTranneOneSignal(10000);
-    return {
-      ready: true,
-      permission: Boolean(OneSignal.Notifications?.permission),
-      optedIn: Boolean(OneSignal.User?.PushSubscription?.optedIn),
-      subscriptionId: OneSignal.User?.PushSubscription?.id || null,
-      token: OneSignal.User?.PushSubscription?.token || null
-    };
+    return { ready: true, ...readPushState(OneSignal) };
   } catch (error) {
-    return { ready: false, permission: false, optedIn: false, error: error.message };
+    return {
+      ready: false,
+      permission: false,
+      optedIn: false,
+      subscriptionId: null,
+      token: null,
+      error: error.message
+    };
   }
 };
