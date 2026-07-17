@@ -1218,7 +1218,7 @@ window.addEventListener('tranne:onesignal-ready', () => {
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('service-worker.js').catch(console.error);
+    navigator.serviceWorker.register('./service-worker.js', { scope: './' }).catch(console.error);
   });
 }
 
@@ -1308,4 +1308,11 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && currentIsAdmin && !pages.admin.classList.contains('hidden')) {
     renderAdmin();
   }
+});
+
+
+// v18: stato notifiche leggibile dalla console e messaggio chiaro nell'app.
+window.addEventListener('tranne:push-status', event => {
+  const status = event.detail || {};
+  if (status.permission && status.optedIn) notify('Servizio notifiche attivo.', 'success');
 });

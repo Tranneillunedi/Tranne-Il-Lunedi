@@ -1,4 +1,4 @@
-// OneSignal Web Push — Tranne il Lunedì v17.1
+// OneSignal Web Push — Tranne il Lunedì v18
 // La chiave API privata NON deve mai essere inserita in questo file.
 window.OneSignalDeferred = window.OneSignalDeferred || [];
 window.tranneOneSignalReady = false;
@@ -14,9 +14,9 @@ window.OneSignalDeferred.push(async function (OneSignal) {
   try {
     await OneSignal.init({
       appId: "6547826d-804c-4a15-aa8b-3b6627ec28c2",
-     serviceWorkerPath: "onesignal/OneSignalSDKWorker.js",
-serviceWorkerParam: {
-  scope: "/Tranne-Il-Lunedi/onesignal/"
+      serviceWorkerPath: "onesignal/OneSignalSDKWorker.js",
+      serviceWorkerParam: {
+        scope: "/Tranne-Il-Lunedi/onesignal/"
       },
       autoResubscribe: true,
       notifyButton: { enable: false },
@@ -72,14 +72,15 @@ window.requestTrannePushPermission = async function () {
 
   await OneSignal.Notifications.requestPermission();
 
-if (OneSignal.Notifications.permission) {
-  await OneSignal.User.PushSubscription.optIn();
-}
+  if (OneSignal.Notifications.permission && OneSignal.User?.PushSubscription) {
+    await OneSignal.User.PushSubscription.optIn();
+  }
 
-return Boolean(
-  OneSignal.Notifications.permission &&
-  OneSignal.User.PushSubscription.optedIn
-);
+  const optedIn = Boolean(OneSignal.User?.PushSubscription?.optedIn);
+  window.dispatchEvent(new CustomEvent('tranne:push-status', {
+    detail: { permission: OneSignal.Notifications.permission, optedIn }
+  }));
+  return Boolean(OneSignal.Notifications.permission && optedIn);
 };
 
 window.syncTranneOneSignalProfile = async function (customer) {
@@ -106,5 +107,21 @@ window.logoutTranneOneSignal = async function () {
     await OneSignal.logout();
   } catch (error) {
     console.warn('Logout OneSignal non completato:', error);
+  }
+};
+
+
+window.getTrannePushStatus = async function () {
+  try {
+    const OneSignal = await window.waitForTranneOneSignal(10000);
+    return {
+      ready: true,
+      permission: Boolean(OneSignal.Notifications?.permission),
+      optedIn: Boolean(OneSignal.User?.PushSubscription?.optedIn),
+      subscriptionId: OneSignal.User?.PushSubscription?.id || null,
+      token: OneSignal.User?.PushSubscription?.token || null
+    };
+  } catch (error) {
+    return { ready: false, permission: false, optedIn: false, error: error.message };
   }
 };
