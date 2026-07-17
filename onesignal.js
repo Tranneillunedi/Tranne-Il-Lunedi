@@ -72,7 +72,15 @@ window.requestTrannePushPermission = async function () {
   }
 
   await OneSignal.Notifications.requestPermission();
-  return Boolean(OneSignal.Notifications.permission);
+
+if (OneSignal.Notifications.permission) {
+  await OneSignal.User.PushSubscription.optIn();
+}
+
+return Boolean(
+  OneSignal.Notifications.permission &&
+  OneSignal.User.PushSubscription.optedIn
+);
 };
 
 window.syncTranneOneSignalProfile = async function (customer) {
