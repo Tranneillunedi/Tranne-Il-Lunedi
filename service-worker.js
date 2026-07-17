@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tranne-il-lunedi-v18';
+const CACHE_NAME = 'tranne-il-lunedi-v19';
 const FILES = [
   './',
   './index.html',
