@@ -17,7 +17,6 @@ window.OneSignalDeferred.push(async function (OneSignal) {
      serviceWorkerPath: "onesignal/OneSignalSDKWorker.js",
 serviceWorkerParam: {
   scope: "/Tranne-Il-Lunedi/onesignal/"
-},
       },
       autoResubscribe: true,
       notifyButton: { enable: false },
