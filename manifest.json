@@ -28,5 +28,25 @@
       "type": "image/png",
       "purpose": "maskable"
     }
+  ],
+  "categories": [
+    "business",
+    "lifestyle"
+  ],
+  "lang": "it-IT",
+  "shortcuts": [
+    {
+      "name": "Prenota ora",
+      "short_name": "Prenota",
+      "description": "Apri la schermata di prenotazione",
+      "url": "./#booking",
+      "icons": [
+        {
+          "src": "assets/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
   ]
 }
