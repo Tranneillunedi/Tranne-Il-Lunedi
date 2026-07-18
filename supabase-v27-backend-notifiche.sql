@@ -1,8 +1,9 @@
--- =============================================================
--- TRANNE IL LUNEDÌ V27 — BACKEND NOTIFICHE COMPLETO
--- Eseguire UNA VOLTA in Supabase > SQL Editor.
--- Richiede le tabelle public.customers e public.bookings già esistenti.
--- =============================================================
+-- ================================================================
+-- TRANNE IL LUNEDÌ — V27 BACKEND NOTIFICHE
+-- Eseguire UNA SOLA VOLTA in Supabase > SQL Editor.
+-- È idempotente: può essere rieseguito per applicare correzioni.
+-- Richiede le tabelle public.bookings e public.customers già esistenti.
+-- ================================================================
 
 create extension if not exists pgcrypto;
 
@@ -18,32 +19,28 @@ create table if not exists public.notification_jobs (
   status text not null default 'pending'
     check (status in ('pending','processing','sent','failed','cancelled')),
   attempts integer not null default 0,
-  locked_at timestamptz,
+  claimed_at timestamptz,
   sent_at timestamptz,
   provider_message_id text,
   last_error text,
   dedupe_key text not null unique,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  created_at timestamptz not null default now()
 );
 
--- Migrazione sicura anche se la tabella V26 esiste già.
-alter table public.notification_jobs add column if not exists locked_at timestamptz;
-alter table public.notification_jobs add column if not exists updated_at timestamptz not null default now();
-alter table public.notification_jobs drop constraint if exists notification_jobs_status_check;
-alter table public.notification_jobs add constraint notification_jobs_status_check
-  check (status in ('pending','processing','sent','failed','cancelled'));
+-- Aggiornamento sicuro nel caso la tabella provenga dalla V26.
+alter table public.notification_jobs
+  add column if not exists claimed_at timestamptz;
+
+alter table public.notification_jobs enable row level security;
+revoke all on table public.notification_jobs from public, anon, authenticated;
 
 create index if not exists notification_jobs_due_idx
   on public.notification_jobs(status, scheduled_for);
 create index if not exists notification_jobs_booking_idx
   on public.notification_jobs(booking_id);
 
-alter table public.notification_jobs enable row level security;
-revoke all on table public.notification_jobs from public, anon, authenticated;
-
--- Converte il telefono nell'External ID usato da OneSignal nel frontend.
-create or replace function public.notification_external_id(p_phone text)
+-- Restituisce l'External ID usato dal frontend OneSignal.
+create or replace function public.customer_push_external_id(p_phone text)
 returns text
 language sql
 immutable
@@ -52,36 +49,10 @@ as $$
     when p_phone is null or p_phone like 'MANUAL-%' then null
     when length(regexp_replace(p_phone, '[^0-9]', '', 'g')) < 8 then null
     else 'cliente_' || regexp_replace(p_phone, '[^0-9]', '', 'g')
-  end
+  end;
 $$;
 
--- Inserisce un job senza generare errori in caso di duplicato.
-create or replace function public.enqueue_notification_job(
-  p_kind text,
-  p_booking_id uuid,
-  p_recipient_type text,
-  p_recipient_external_id text,
-  p_title text,
-  p_message text,
-  p_scheduled_for timestamptz,
-  p_dedupe_key text
-)
-returns void
-language plpgsql
-security definer
-set search_path = public, pg_temp
-as $$
-begin
-  insert into public.notification_jobs(
-    kind, booking_id, recipient_type, recipient_external_id,
-    title, message, scheduled_for, dedupe_key
-  ) values (
-    p_kind, p_booking_id, p_recipient_type, p_recipient_external_id,
-    p_title, p_message, p_scheduled_for, p_dedupe_key
-  ) on conflict (dedupe_key) do nothing;
-end;
-$$;
-
+-- Accoda notifiche e promemoria quando una prenotazione cambia.
 create or replace function public.enqueue_booking_notifications()
 returns trigger
 language plpgsql
@@ -94,116 +65,123 @@ declare
   ext_id text;
   pretty_date text;
   pretty_time text;
-  version_key text;
+  change_key text;
 begin
   select * into c from public.customers where id = new.customer_id;
+  if c.id is null then
+    return new;
+  end if;
+
   appointment_at := (new.booking_date + new.booking_time) at time zone 'Europe/Rome';
-  ext_id := public.notification_external_id(c.phone);
+  ext_id := public.customer_push_external_id(c.phone);
   pretty_date := to_char(new.booking_date, 'DD/MM/YYYY');
   pretty_time := to_char(new.booking_time, 'HH24:MI');
-  version_key := new.booking_date::text || '-' || replace(new.booking_time::text, ':', '');
+  change_key := to_char(clock_timestamp(), 'YYYYMMDDHH24MISSMS');
 
-  if tg_op = 'INSERT' then
-    if new.status = 'confirmed' then
-      perform public.enqueue_notification_job(
-        'new_booking', new.id, 'admin', null,
-        '💈 Nuova prenotazione',
-        trim(coalesce(c.first_name,'') || ' ' || coalesce(c.last_name,'')) ||
-          ' — ' || pretty_date || ' alle ' || pretty_time || ' — ' || new.service,
-        now(), 'admin-new-' || new.id
-      );
-
-      if ext_id is not null then
-        if appointment_at - interval '24 hours' > now() then
-          perform public.enqueue_notification_job(
-            'reminder_24h', new.id, 'customer', ext_id,
-            'Promemoria appuntamento',
-            'Domani alle ' || pretty_time || ' ti aspettiamo da Tranne il Lunedì.',
-            appointment_at - interval '24 hours',
-            '24h-' || new.id || '-' || version_key
-          );
-        end if;
-        if appointment_at - interval '1 hour' > now() then
-          perform public.enqueue_notification_job(
-            'reminder_1h', new.id, 'customer', ext_id,
-            'Appuntamento tra un’ora',
-            'Ti aspettiamo alle ' || pretty_time || ' da Tranne il Lunedì.',
-            appointment_at - interval '1 hour',
-            '1h-' || new.id || '-' || version_key
-          );
-        end if;
-      end if;
-    end if;
-    return new;
+  -- Nuova prenotazione: avvisa subito l'amministratore.
+  if tg_op = 'INSERT' and new.status = 'confirmed' then
+    insert into public.notification_jobs(
+      kind, booking_id, recipient_type, title, message, scheduled_for, dedupe_key
+    ) values (
+      'new_booking', new.id, 'admin', '💈 Nuova prenotazione',
+      trim(c.first_name || ' ' || c.last_name) || ' — ' || pretty_date || ' alle ' || pretty_time,
+      now(), 'admin-new-' || new.id
+    ) on conflict do nothing;
   end if;
 
-  -- Da qui in poi TG_OP è UPDATE.
-  if old.status = 'confirmed' and new.status = 'cancelled' then
+  -- Spostamento: annulla i vecchi promemoria e avvisa admin + cliente.
+  if tg_op = 'UPDATE'
+     and new.status = 'confirmed'
+     and (old.booking_date, old.booking_time) is distinct from (new.booking_date, new.booking_time)
+  then
     update public.notification_jobs
-      set status = 'cancelled', updated_at = now()
-      where booking_id = new.id and status in ('pending','processing');
-
-    perform public.enqueue_notification_job(
-      'booking_cancelled_admin', new.id, 'admin', null,
-      '❌ Prenotazione annullata',
-      trim(coalesce(c.first_name,'') || ' ' || coalesce(c.last_name,'')) ||
-        ' — ' || pretty_date || ' alle ' || pretty_time,
-      now(), 'admin-cancelled-' || new.id
-    );
-
-    if ext_id is not null then
-      perform public.enqueue_notification_job(
-        'customer_cancelled', new.id, 'customer', ext_id,
-        'Appuntamento annullato',
-        'Il tuo appuntamento del ' || pretty_date || ' alle ' || pretty_time || ' è stato annullato.',
-        now(), 'customer-cancelled-' || new.id
-      );
-    end if;
-    return new;
-  end if;
-
-  if new.status = 'confirmed'
-     and (old.booking_date, old.booking_time) is distinct from (new.booking_date, new.booking_time) then
-    update public.notification_jobs
-      set status = 'cancelled', updated_at = now()
+      set status = 'cancelled', last_error = 'Sostituito da un nuovo orario'
       where booking_id = new.id
         and status in ('pending','processing')
         and kind in ('reminder_24h','reminder_1h');
 
-    perform public.enqueue_notification_job(
-      'booking_moved', new.id, 'admin', null,
-      '🔄 Appuntamento spostato',
-      trim(coalesce(c.first_name,'') || ' ' || coalesce(c.last_name,'')) ||
-        ' → ' || pretty_date || ' alle ' || pretty_time,
-      now(), 'admin-moved-' || new.id || '-' || version_key
-    );
+    insert into public.notification_jobs(
+      kind, booking_id, recipient_type, title, message, scheduled_for, dedupe_key
+    ) values (
+      'booking_moved', new.id, 'admin', '🔄 Appuntamento spostato',
+      trim(c.first_name || ' ' || c.last_name) || ' → ' || pretty_date || ' alle ' || pretty_time,
+      now(), 'admin-moved-' || new.id || '-' || change_key
+    ) on conflict do nothing;
 
     if ext_id is not null then
-      perform public.enqueue_notification_job(
+      insert into public.notification_jobs(
+        kind, booking_id, recipient_type, recipient_external_id,
+        title, message, scheduled_for, dedupe_key
+      ) values (
         'customer_moved', new.id, 'customer', ext_id,
         'Appuntamento aggiornato',
         'Il tuo appuntamento è stato spostato al ' || pretty_date || ' alle ' || pretty_time || '.',
-        now(), 'customer-moved-' || new.id || '-' || version_key
-      );
+        now(), 'customer-moved-' || new.id || '-' || change_key
+      ) on conflict do nothing;
+    end if;
+  end if;
 
-      if appointment_at - interval '24 hours' > now() then
-        perform public.enqueue_notification_job(
-          'reminder_24h', new.id, 'customer', ext_id,
-          'Promemoria appuntamento',
-          'Domani alle ' || pretty_time || ' ti aspettiamo da Tranne il Lunedì.',
-          appointment_at - interval '24 hours',
-          '24h-' || new.id || '-' || version_key
-        );
-      end if;
-      if appointment_at - interval '1 hour' > now() then
-        perform public.enqueue_notification_job(
-          'reminder_1h', new.id, 'customer', ext_id,
-          'Appuntamento tra un’ora',
-          'Ti aspettiamo alle ' || pretty_time || ' da Tranne il Lunedì.',
-          appointment_at - interval '1 hour',
-          '1h-' || new.id || '-' || version_key
-        );
-      end if;
+  -- Cancellazione: annulla i promemoria e avvisa admin + cliente.
+  if tg_op = 'UPDATE'
+     and old.status is distinct from new.status
+     and new.status = 'cancelled'
+  then
+    update public.notification_jobs
+      set status = 'cancelled', last_error = 'Prenotazione annullata'
+      where booking_id = new.id
+        and status in ('pending','processing')
+        and kind in ('reminder_24h','reminder_1h');
+
+    insert into public.notification_jobs(
+      kind, booking_id, recipient_type, title, message, scheduled_for, dedupe_key
+    ) values (
+      'booking_cancelled', new.id, 'admin', '❌ Prenotazione annullata',
+      trim(c.first_name || ' ' || c.last_name) || ' — ' || pretty_date || ' alle ' || pretty_time,
+      now(), 'admin-cancelled-' || new.id || '-' || change_key
+    ) on conflict do nothing;
+
+    if ext_id is not null then
+      insert into public.notification_jobs(
+        kind, booking_id, recipient_type, recipient_external_id,
+        title, message, scheduled_for, dedupe_key
+      ) values (
+        'customer_cancelled', new.id, 'customer', ext_id,
+        'Appuntamento annullato',
+        'Il tuo appuntamento del ' || pretty_date || ' alle ' || pretty_time || ' è stato annullato.',
+        now(), 'customer-cancelled-' || new.id || '-' || change_key
+      ) on conflict do nothing;
+    end if;
+  end if;
+
+  -- Crea i promemoria per nuova prenotazione o nuovo orario.
+  if new.status = 'confirmed'
+     and ext_id is not null
+     and (tg_op = 'INSERT' or (old.booking_date, old.booking_time) is distinct from (new.booking_date, new.booking_time))
+  then
+    if appointment_at - interval '24 hours' > now() then
+      insert into public.notification_jobs(
+        kind, booking_id, recipient_type, recipient_external_id,
+        title, message, scheduled_for, dedupe_key
+      ) values (
+        'reminder_24h', new.id, 'customer', ext_id,
+        'Promemoria appuntamento',
+        'Domani alle ' || pretty_time || ' ti aspettiamo da Tranne il Lunedì.',
+        appointment_at - interval '24 hours',
+        '24h-' || new.id || '-' || new.booking_date || '-' || new.booking_time
+      ) on conflict do nothing;
+    end if;
+
+    if appointment_at - interval '1 hour' > now() then
+      insert into public.notification_jobs(
+        kind, booking_id, recipient_type, recipient_external_id,
+        title, message, scheduled_for, dedupe_key
+      ) values (
+        'reminder_1h', new.id, 'customer', ext_id,
+        'Appuntamento tra un’ora',
+        'Ti aspettiamo alle ' || pretty_time || ' da Tranne il Lunedì.',
+        appointment_at - interval '1 hour',
+        '1h-' || new.id || '-' || new.booking_date || '-' || new.booking_time
+      ) on conflict do nothing;
     end if;
   end if;
 
@@ -216,7 +194,7 @@ create trigger bookings_notification_trigger
 after insert or update of booking_date, booking_time, status on public.bookings
 for each row execute function public.enqueue_booking_notifications();
 
--- Prelievo atomico: impedisce invii doppi se due esecuzioni si sovrappongono.
+-- Claim atomico: evita doppi invii se due cron partono insieme.
 create or replace function public.claim_notification_jobs(p_limit integer default 50)
 returns setof public.notification_jobs
 language plpgsql
@@ -224,27 +202,27 @@ security definer
 set search_path = public, pg_temp
 as $$
 begin
-  -- Recupera eventuali job rimasti bloccati per crash della funzione.
+  -- Recupera job rimasti bloccati per oltre 10 minuti.
   update public.notification_jobs
-     set status = 'pending', locked_at = null, updated_at = now()
+     set status = 'pending', claimed_at = null,
+         last_error = coalesce(last_error || E'\n', '') || 'Recuperato dopo timeout di elaborazione'
    where status = 'processing'
-     and locked_at < now() - interval '10 minutes';
+     and claimed_at < now() - interval '10 minutes'
+     and attempts < 5;
 
   return query
   with selected as (
-    select id
-      from public.notification_jobs
-     where status = 'pending'
-       and scheduled_for <= now()
-     order by scheduled_for, id
+    select j.id
+      from public.notification_jobs j
+     where j.status = 'pending'
+       and j.scheduled_for <= now()
+       and j.attempts < 5
+     order by j.scheduled_for, j.id
      for update skip locked
      limit greatest(1, least(coalesce(p_limit, 50), 100))
   )
   update public.notification_jobs j
-     set status = 'processing',
-         locked_at = now(),
-         attempts = attempts + 1,
-         updated_at = now()
+     set status = 'processing', claimed_at = now()
     from selected s
    where j.id = s.id
   returning j.*;
@@ -252,38 +230,39 @@ end;
 $$;
 
 revoke all on function public.claim_notification_jobs(integer) from public, anon, authenticated;
+revoke all on function public.customer_push_external_id(text) from public, anon, authenticated;
 
--- Accoda i promemoria per prenotazioni future già presenti.
+-- Promemoria per prenotazioni future già presenti.
 insert into public.notification_jobs(
   kind, booking_id, recipient_type, recipient_external_id,
   title, message, scheduled_for, dedupe_key
 )
 select
-  'reminder_24h', b.id, 'customer', public.notification_external_id(c.phone),
+  'reminder_24h', b.id, 'customer', public.customer_push_external_id(c.phone),
   'Promemoria appuntamento',
-  'Domani alle ' || to_char(b.booking_time,'HH24:MI') || ' ti aspettiamo da Tranne il Lunedì.',
+  'Domani alle ' || to_char(b.booking_time, 'HH24:MI') || ' ti aspettiamo da Tranne il Lunedì.',
   ((b.booking_date + b.booking_time) at time zone 'Europe/Rome') - interval '24 hours',
-  '24h-' || b.id || '-' || b.booking_date || '-' || replace(b.booking_time::text, ':', '')
+  '24h-' || b.id || '-' || b.booking_date || '-' || b.booking_time
 from public.bookings b
 join public.customers c on c.id = b.customer_id
 where b.status = 'confirmed'
-  and public.notification_external_id(c.phone) is not null
+  and public.customer_push_external_id(c.phone) is not null
   and ((b.booking_date + b.booking_time) at time zone 'Europe/Rome') - interval '24 hours' > now()
-on conflict (dedupe_key) do nothing;
+on conflict do nothing;
 
 insert into public.notification_jobs(
   kind, booking_id, recipient_type, recipient_external_id,
   title, message, scheduled_for, dedupe_key
 )
 select
-  'reminder_1h', b.id, 'customer', public.notification_external_id(c.phone),
+  'reminder_1h', b.id, 'customer', public.customer_push_external_id(c.phone),
   'Appuntamento tra un’ora',
-  'Ti aspettiamo alle ' || to_char(b.booking_time,'HH24:MI') || ' da Tranne il Lunedì.',
+  'Ti aspettiamo alle ' || to_char(b.booking_time, 'HH24:MI') || ' da Tranne il Lunedì.',
   ((b.booking_date + b.booking_time) at time zone 'Europe/Rome') - interval '1 hour',
-  '1h-' || b.id || '-' || b.booking_date || '-' || replace(b.booking_time::text, ':', '')
+  '1h-' || b.id || '-' || b.booking_date || '-' || b.booking_time
 from public.bookings b
 join public.customers c on c.id = b.customer_id
 where b.status = 'confirmed'
-  and public.notification_external_id(c.phone) is not null
+  and public.customer_push_external_id(c.phone) is not null
   and ((b.booking_date + b.booking_time) at time zone 'Europe/Rome') - interval '1 hour' > now()
-on conflict (dedupe_key) do nothing;
+on conflict do nothing;
