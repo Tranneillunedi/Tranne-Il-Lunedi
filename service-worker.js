@@ -1,11 +1,11 @@
-const CACHE_NAME = 'tranne-il-lunedi-v23';
+const CACHE_NAME = 'tranne-il-lunedi-v25';
 const APP_FILES = [
   './',
   './index.html',
-  './style.css?v=22',
-  './app.js?v=22',
+  './style.css?v=25',
+  './app.js?v=25',
   './supabase-config.js',
-  './onesignal.js?v=22',
+  './onesignal.js?v=25',
   './manifest.json',
   './assets/logo.png',
   './assets/icon-192.png',
@@ -14,23 +14,16 @@ const APP_FILES = [
 ];
 
 self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(APP_FILES))
-  );
+  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_FILES)));
   self.skipWaiting();
 });
 
 self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(
-        keys
-          .filter(key => key !== CACHE_NAME)
-          .map(key => caches.delete(key))
-      )
-    )
-  );
-  self.clients.claim();
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.map(key => key === CACHE_NAME ? null : caches.delete(key)));
+    await self.clients.claim();
+  })());
 });
 
 self.addEventListener('fetch', event => {
@@ -38,36 +31,26 @@ self.addEventListener('fetch', event => {
 
   const url = new URL(event.request.url);
 
-  // I file OneSignal devono arrivare direttamente dalla rete.
-  // Il service worker della PWA non deve intercettarli né memorizzarli.
-  if (
-    url.pathname.includes('/onesignal/') ||
-    url.hostname === 'cdn.onesignal.com'
-  ) {
+  // Il worker e gli script OneSignal non devono essere intercettati dalla cache PWA.
+  if (url.pathname.includes('/onesignal/') || url.hostname === 'cdn.onesignal.com') {
     return;
   }
 
-  // Non memorizzare risorse appartenenti ad altri domini.
   if (url.origin !== self.location.origin) return;
 
-  event.respondWith(
-    fetch(event.request)
-      .then(response => {
-        if (response.ok && response.type === 'basic') {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
-        }
-        return response;
-      })
-      .catch(async () => {
-        const cached = await caches.match(event.request);
-        if (cached) return cached;
-
-        if (event.request.mode === 'navigate') {
-          return caches.match('./index.html');
-        }
-
-        throw new Error('Risorsa non disponibile offline.');
-      })
-  );
+  event.respondWith((async () => {
+    try {
+      const response = await fetch(event.request, { cache: 'no-store' });
+      if (response.ok && response.type === 'basic') {
+        const cache = await caches.open(CACHE_NAME);
+        await cache.put(event.request, response.clone());
+      }
+      return response;
+    } catch (error) {
+      const cached = await caches.match(event.request);
+      if (cached) return cached;
+      if (event.request.mode === 'navigate') return caches.match('./index.html');
+      throw error;
+    }
+  })());
 });

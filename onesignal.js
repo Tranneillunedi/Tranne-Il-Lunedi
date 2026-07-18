@@ -1,4 +1,4 @@
-// OneSignal Web Push — Tranne il Lunedì v23
+// OneSignal Web Push — Tranne il Lunedì v25
 // La chiave API privata NON deve mai essere inserita in questo file.
 window.OneSignalDeferred = window.OneSignalDeferred || [];
 window.tranneOneSignalReady = false;
@@ -16,9 +16,49 @@ const ONESIGNAL_APP_ID = '6547826d-804c-4a15-aa8b-3b6627ec28c2';
 const ONESIGNAL_WORKER_PATH = 'onesignal/OneSignalSDKWorker.js';
 const ONESIGNAL_WORKER_SCOPE = '/Tranne-Il-Lunedi/onesignal/';
 
+async function ensureOneSignalWorker() {
+  if (!('serviceWorker' in navigator)) {
+    throw new Error('Il browser non supporta i service worker.');
+  }
+
+  // Registrazione preventiva verificata sul sito: evita che l'SDK riceva
+  // una vecchia risposta 404 durante la propria registrazione automatica.
+  const workerUrl = new URL(ONESIGNAL_WORKER_PATH, document.baseURI).pathname;
+  const registration = await navigator.serviceWorker.register(workerUrl, {
+    scope: ONESIGNAL_WORKER_SCOPE,
+    updateViaCache: 'none'
+  });
+
+  await registration.update().catch(() => {});
+
+  if (!registration.active) {
+    const worker = registration.installing || registration.waiting;
+    if (worker) {
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('Timeout attivazione worker OneSignal.')), 15000);
+        const check = () => {
+          if (worker.state === 'activated' || registration.active) {
+            clearTimeout(timeout);
+            resolve();
+          } else if (worker.state === 'redundant') {
+            clearTimeout(timeout);
+            reject(new Error('Il worker OneSignal è diventato redundant.'));
+          }
+        };
+        worker.addEventListener('statechange', check);
+        check();
+      });
+    }
+  }
+
+  return registration;
+}
+
 window.OneSignalDeferred.push(async function (OneSignal) {
   try {
-    OneSignal.Debug?.setLogLevel?.('trace');
+    OneSignal.Debug?.setLogLevel?.('warn');
+
+    await ensureOneSignalWorker();
 
     await OneSignal.init({
       appId: ONESIGNAL_APP_ID,
@@ -124,7 +164,7 @@ function formatDiagnostics(diagnostics) {
     : 'nessun service worker registrato';
 
   return [
-    'DIAGNOSTICA PUSH v23',
+    'DIAGNOSTICA PUSH v25',
     `Permesso browser: ${diagnostics.permissionNative}`,
     `Permesso OneSignal: ${diagnostics.permission}`,
     `Opted-in: ${diagnostics.optedIn}`,
