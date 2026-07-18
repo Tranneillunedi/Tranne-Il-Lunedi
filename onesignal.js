@@ -1,4 +1,4 @@
-// OneSignal Web Push — Tranne il Lunedì v22 diagnostica
+// OneSignal Web Push — Tranne il Lunedì v23
 // La chiave API privata NON deve mai essere inserita in questo file.
 window.OneSignalDeferred = window.OneSignalDeferred || [];
 window.tranneOneSignalReady = false;
@@ -11,8 +11,9 @@ window.tranneOneSignalReadyPromise = new Promise((resolve) => {
 });
 
 const ONESIGNAL_APP_ID = '6547826d-804c-4a15-aa8b-3b6627ec28c2';
-// OneSignal richiede un percorso relativo alla root dell'origine, senza slash iniziale.
-const ONESIGNAL_WORKER_PATH = 'Tranne-Il-Lunedi/onesignal/OneSignalSDKWorker.js';
+// Il percorso è relativo alla pagina GitHub Pages, già dentro /Tranne-Il-Lunedi/.
+// Non ripetere 'Tranne-Il-Lunedi', altrimenti il browser cerca una cartella duplicata.
+const ONESIGNAL_WORKER_PATH = 'onesignal/OneSignalSDKWorker.js';
 const ONESIGNAL_WORKER_SCOPE = '/Tranne-Il-Lunedi/onesignal/';
 
 window.OneSignalDeferred.push(async function (OneSignal) {
@@ -79,6 +80,7 @@ async function collectPushDiagnostics(OneSignal) {
     userAgent: navigator.userAgent,
     workerPath: ONESIGNAL_WORKER_PATH,
     workerScope: ONESIGNAL_WORKER_SCOPE,
+    workerResolvedUrl: new URL(ONESIGNAL_WORKER_PATH, location.href).href,
     ...state,
     registrations: [],
     nativeSubscription: null
@@ -122,7 +124,7 @@ function formatDiagnostics(diagnostics) {
     : 'nessun service worker registrato';
 
   return [
-    'DIAGNOSTICA PUSH v22',
+    'DIAGNOSTICA PUSH v23',
     `Permesso browser: ${diagnostics.permissionNative}`,
     `Permesso OneSignal: ${diagnostics.permission}`,
     `Opted-in: ${diagnostics.optedIn}`,
@@ -131,6 +133,7 @@ function formatDiagnostics(diagnostics) {
     `Subscription browser: ${diagnostics.nativeSubscription ? 'presente' : 'assente'}`,
     `Modalità PWA: ${diagnostics.standalone ? 'sì' : 'no'}`,
     `Contesto HTTPS: ${diagnostics.secureContext ? 'sì' : 'no'}`,
+    `Worker URL: ${diagnostics.workerResolvedUrl}`,
     `Worker attesi: ${ONESIGNAL_WORKER_SCOPE}`,
     `Worker registrati:\n${workers}`,
     diagnostics.diagnosticError ? `Errore diagnostica: ${diagnostics.diagnosticError}` : ''
