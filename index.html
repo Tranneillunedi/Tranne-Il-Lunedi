@@ -8,9 +8,9 @@
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png" />
   <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png" />
-  <link rel="stylesheet" href="style.css?v=25" />
+  <link rel="stylesheet" href="style.css?v=27" />
   <!-- La coda OneSignal deve essere creata prima di caricare il Web SDK. -->
-  <script src="onesignal.js?v=25"></script>
+  <script src="onesignal.js?v=27"></script>
   <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
   <title>Tranne il Lunedì</title>
 </head>
@@ -253,6 +253,22 @@
             <button id="saveTimeBlockBtn" class="primary-btn full" type="button">Blocca fascia</button>
             <div id="timeBlockList" class="management-list"></div>
           </div>
+        </div>
+
+
+        <div class="management-card broadcast-card">
+          <p class="eyebrow">MESSAGGIO A TUTTI</p>
+          <h3>Invia una notifica ai clienti</h3>
+          <div class="form-block">
+            <label for="broadcastTitle">Titolo</label>
+            <input id="broadcastTitle" type="text" maxlength="60" placeholder="Es. Chiusura per ferie" />
+          </div>
+          <div class="form-block">
+            <label for="broadcastMessage">Messaggio</label>
+            <textarea id="broadcastMessage" rows="3" maxlength="180" placeholder="Es. Saremo chiusi dal 10 al 20 agosto."></textarea>
+          </div>
+          <button id="sendBroadcastBtn" class="primary-btn full" type="button">Invia a tutti</button>
+          <small id="broadcastStatus" class="broadcast-status"></small>
         </div>
 
         <div class="booking-list-wrap">
@@ -503,7 +519,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js"></script>
-  <script src="app.js?v=25"></script>
+  <script src="app.js?v=27"></script>
 
 </body>
 </html>

@@ -1228,3 +1228,9 @@ body.tutorial-open {
 .booking-origin { display:inline-flex; margin-top:6px; padding:4px 8px; border-radius:999px; font-size:.72rem; font-weight:800; letter-spacing:.04em; color:#fff; background:rgba(212,107,44,.8); }
 .agenda-slot .booking-origin { font-size:.62rem; padding:2px 6px; }
 @media (max-width:650px){ .manual-booking-bar{align-items:stretch;flex-direction:column}.manual-booking-bar .primary-btn{width:100%} }
+
+
+/* V26 — comunicazioni push amministratore */
+.broadcast-card { margin: 24px 0; }
+.broadcast-card textarea { width: 100%; resize: vertical; }
+.broadcast-status { display: block; min-height: 1.4em; margin-top: 10px; opacity: .8; }

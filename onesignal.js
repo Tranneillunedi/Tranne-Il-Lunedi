@@ -1,4 +1,4 @@
-// OneSignal Web Push — Tranne il Lunedì v25
+// OneSignal Web Push — Tranne il Lunedì v27
 // La chiave API privata NON deve mai essere inserita in questo file.
 window.OneSignalDeferred = window.OneSignalDeferred || [];
 window.tranneOneSignalReady = false;
@@ -164,7 +164,7 @@ function formatDiagnostics(diagnostics) {
     : 'nessun service worker registrato';
 
   return [
-    'DIAGNOSTICA PUSH v25',
+    'DIAGNOSTICA PUSH v27',
     `Permesso browser: ${diagnostics.permissionNative}`,
     `Permesso OneSignal: ${diagnostics.permission}`,
     `Opted-in: ${diagnostics.optedIn}`,

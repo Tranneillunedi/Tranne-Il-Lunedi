@@ -1295,6 +1295,62 @@ manualBookingForm?.addEventListener('submit', async event => {
   await renderAdmin();
 });
 
+
+
+// V27 — invio comunicazioni generali dall'Area Salone.
+const sendBroadcastBtn = document.getElementById('sendBroadcastBtn');
+sendBroadcastBtn?.addEventListener('click', async () => {
+  const titleInput = document.getElementById('broadcastTitle');
+  const messageInput = document.getElementById('broadcastMessage');
+  const status = document.getElementById('broadcastStatus');
+  const title = titleInput.value.trim();
+  const message = messageInput.value.trim();
+
+  if (!currentIsAdmin || !customerToken()) {
+    alert('Accesso amministratore richiesto.');
+    return;
+  }
+  if (title.length < 3 || message.length < 3) {
+    alert('Inserisci titolo e messaggio.');
+    return;
+  }
+  if (!confirm(`Inviare questa notifica a tutti?\n\n${title}\n${message}`)) return;
+
+  sendBroadcastBtn.disabled = true;
+  sendBroadcastBtn.textContent = 'Invio…';
+  status.textContent = '';
+
+  try {
+    const response = await fetch(`${window.SUPABASE_URL}/functions/v1/send-broadcast`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': window.SUPABASE_PUBLISHABLE_KEY,
+        'Authorization': `Bearer ${window.SUPABASE_PUBLISHABLE_KEY}`
+      },
+      body: JSON.stringify({
+        access_token: customerToken(),
+        title,
+        message,
+        url: 'https://tranneillunedi.github.io/Tranne-Il-Lunedi/'
+      })
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || 'Invio non riuscito');
+    titleInput.value = '';
+    messageInput.value = '';
+    status.textContent = `Notifica inviata (${result.recipients ?? 0} destinatari).`;
+    notify('Messaggio inviato a tutti.', 'success');
+  } catch (error) {
+    console.error(error);
+    status.textContent = `Errore: ${error.message}`;
+    alert(`Non è stato possibile inviare la notifica: ${error.message}`);
+  } finally {
+    sendBroadcastBtn.disabled = false;
+    sendBroadcastBtn.textContent = 'Invia a tutti';
+  }
+});
+
 // Aggiornamento automatico dell'agenda mentre l'Area Salone è aperta.
 // Il controllo periodico è affidabile anche se Realtime non è abilitato sulla tabella.
 setInterval(() => {
