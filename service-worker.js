@@ -1,11 +1,11 @@
-const CACHE_NAME = 'tranne-il-lunedi-v21';
+const CACHE_NAME = 'tranne-il-lunedi-v22';
 const APP_FILES = [
   './',
   './index.html',
-  './style.css?v=21',
-  './app.js?v=21',
+  './style.css?v=22',
+  './app.js?v=22',
   './supabase-config.js',
-  './onesignal.js?v=21',
+  './onesignal.js?v=22',
   './manifest.json',
   './assets/logo.png',
   './assets/icon-192.png',
