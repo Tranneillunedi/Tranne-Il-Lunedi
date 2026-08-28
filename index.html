@@ -4,21 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#0b0b0b" />
-  <meta name="description" content="Prenota online taglio, barba e servizi da Tranne il Lunedì. Scegli giorno e orario in pochi secondi." />
-  <meta name="robots" content="index, follow" />
-  <meta name="format-detection" content="telephone=no" />
-  <meta property="og:type" content="website" />
-  <meta property="og:locale" content="it_IT" />
-  <meta property="og:title" content="Tranne il Lunedì — Prenotazioni" />
-  <meta property="og:description" content="Prenota online il tuo appuntamento in modo semplice e veloce." />
-  <meta property="og:image" content="assets/icon-512.png" />
-  <meta name="twitter:card" content="summary" />
+  <meta name="description" content="Prenota il tuo appuntamento da Tranne il Lunedì." />
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png" />
   <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png" />
-  <link rel="stylesheet" href="style.css?v=28" />
+  <link rel="stylesheet" href="style.css?v=27" />
   <!-- La coda OneSignal deve essere creata prima di caricare il Web SDK. -->
-  <script src="onesignal.js?v=28"></script>
+  <script src="onesignal.js?v=27"></script>
   <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
   <title>Tranne il Lunedì</title>
 </head>
@@ -35,12 +27,7 @@
       <p class="eyebrow">BARBER SHOP</p>
       <h1>Tranne il Lunedì</h1>
       <p class="subtitle">Prenota il tuo appuntamento in modo semplice e veloce.</p>
-      <button class="primary-btn glow hero-cta" data-go="booking">Prenota ora</button>
-      <div class="hero-trust" aria-label="Vantaggi della prenotazione online">
-        <span>✓ Conferma immediata</span>
-        <span>✓ Promemoria automatici</span>
-        <span>✓ Modifica dal profilo</span>
-      </div>
+      <button class="primary-btn glow" data-go="booking">Prenota ora</button>
     </header>
 
     <main>
@@ -60,6 +47,15 @@
               <p>Durata indicativa: 40 minuti</p>
             </div>
             <strong>17 €</strong>
+          </article>
+
+          <article class="service-card" data-service="Taglio bambino (0-10 anni)" data-price="12">
+            <span class="service-icon">👦</span>
+            <div>
+              <h3>Taglio bambino</h3>
+              <p>0–10 anni · Durata indicativa: 30 minuti</p>
+            </div>
+            <strong>12 €</strong>
           </article>
 
           <article class="service-card" data-service="Barba" data-price="5">
@@ -111,6 +107,7 @@
             <select id="service" required>
               <option value="">Seleziona un servizio</option>
               <option value="Taglio|17">Taglio — 17 €</option>
+              <option value="Taglio bambino (0-10 anni)|12">Taglio bambino (0-10 anni) — 12 €</option>
               <option value="Barba|5">Barba — 5 €</option>
               <option value="Completo|22">Completo — 22 €</option>
             </select>
@@ -444,12 +441,12 @@
     </div>
   </div>
 
-  <nav class="bottom-nav" aria-label="Navigazione principale">
-      <button data-go="home" class="nav-item active" aria-label="Vai alla home"><span aria-hidden="true">⌂</span>Home</button>
-      <button data-go="booking" class="nav-item" aria-label="Prenota un appuntamento"><span aria-hidden="true">＋</span>Prenota</button>
-      <button data-go="admin" id="adminNavItem" class="nav-item hidden" aria-label="Apri agenda"><span aria-hidden="true">▣</span>Agenda</button>
-      <button data-go="account" class="nav-item" aria-label="Apri profilo"><span aria-hidden="true">◉</span>Profilo</button>
-      <button id="installBtn" class="nav-item hidden" aria-label="Installa app"><span aria-hidden="true">⇩</span>Installa</button>
+  <nav class="bottom-nav">
+      <button data-go="home" class="nav-item active"><span>⌂</span>Home</button>
+      <button data-go="booking" class="nav-item"><span>＋</span>Prenota</button>
+      <button data-go="admin" id="adminNavItem" class="nav-item hidden"><span>▣</span>Agenda</button>
+      <button data-go="account" class="nav-item"><span>◉</span>Profilo</button>
+      <button id="installBtn" class="nav-item hidden"><span>⇩</span>Installa</button>
     </nav>
   </div>
 
@@ -519,7 +516,7 @@
           <div class="form-block"><label for="manualLastName">Cognome</label><input id="manualLastName" required minlength="2" autocomplete="family-name"></div>
         </div>
         <div class="form-block"><label for="manualPhone">Telefono <small>(facoltativo)</small></label><input id="manualPhone" inputmode="tel" autocomplete="tel" placeholder="Es. 333 1234567"></div>
-        <div class="form-block"><label for="manualService">Servizio</label><select id="manualService" required><option value="Taglio">Taglio — 17 €</option><option value="Completo">Completo — 22 €</option><option value="Barba">Barba — 5 €</option></select></div>
+        <div class="form-block"><label for="manualService">Servizio</label><select id="manualService" required><option value="Taglio">Taglio — 17 €</option><option value="Taglio bambino (0-10 anni)">Taglio bambino (0-10 anni) — 12 €</option><option value="Completo">Completo — 22 €</option><option value="Barba">Barba — 5 €</option></select></div>
         <div class="form-grid">
           <div class="form-block"><label for="manualDate">Data</label><input id="manualDate" type="date" required></div>
           <div class="form-block"><label for="manualTime">Ora</label><select id="manualTime" required></select></div>

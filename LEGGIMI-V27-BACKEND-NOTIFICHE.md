@@ -1,79 +1,87 @@
-# Tranne il Lunedì — V27 backend notifiche
+# Tranne il Lunedì V27 — attivazione backend notifiche
 
-Questa versione contiene il backend reale per:
+Questa versione contiene codice reale per:
 
-- notifica all'amministratore alla nuova prenotazione;
-- notifica all'amministratore e al cliente quando l'orario cambia;
-- notifica all'amministratore e al cliente quando l'appuntamento viene annullato;
-- promemoria al cliente 24 ore prima;
-- promemoria al cliente 1 ora prima;
-- invio di comunicazioni a tutti dall'Area Salone;
-- coda, log, retry e protezione dai doppi invii.
+- notifica immediata all’amministratore per nuova prenotazione;
+- notifica all’amministratore e al cliente quando l’appuntamento viene spostato;
+- notifica all’amministratore e al cliente quando viene annullato;
+- promemoria al cliente 24 ore e 1 ora prima;
+- messaggi a tutti dall’Area Salone;
+- coda, storico, tentativi e protezione dagli invii doppi.
 
-## 1. Database
+## 1. Carica la V27 su GitHub
 
-Apri **Supabase → SQL Editor → New query**, copia tutto il file:
+Sostituisci i file del repository con quelli contenuti in questa cartella e attendi il completamento del deploy GitHub Pages.
+
+## 2. Esegui lo SQL
+
+In Supabase apri **SQL Editor → New query**, incolla tutto il file:
 
 `supabase-v27-backend-notifiche.sql`
 
-e premi **Run**. Non eseguire il vecchio `supabase-v26-notifiche.sql`.
+poi premi **Run**. Lo script è compatibile anche se avevi già eseguito quello V26.
 
-## 2. Segreti delle Edge Functions
+## 3. Copia la chiave OneSignal
 
-Apri **Supabase → Edge Functions → Secrets** e aggiungi:
+In OneSignal apri la tua app e vai in **Settings → Keys & IDs**. Copia la **App API Key / REST API Key**. Non inserirla mai su GitHub.
 
-- `ONESIGNAL_APP_ID` = `6547826d-804c-4a15-aa8b-3b6627ec28c2`
-- `ONESIGNAL_REST_API_KEY` = la REST API Key presa da OneSignal → Settings → Keys & IDs
-- `CRON_SECRET` = una password lunga scelta da te, per esempio almeno 32 caratteri casuali
-- `SITE_URL` = `https://tranneillunedi.github.io/Tranne-Il-Lunedi/`
+L’App ID è già noto:
 
-`SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` sono normalmente disponibili automaticamente nelle Edge Functions ospitate da Supabase.
+`6547826d-804c-4a15-aa8b-3b6627ec28c2`
 
-**Non mettere mai la REST API Key di OneSignal su GitHub o in `supabase-config.js`.**
+## 4. Pubblica le Edge Functions
 
-## 3. Pubblicare le funzioni
-
-Metodo CLI, dalla cartella del progetto:
+Metodo consigliato con Supabase CLI, dalla cartella del progetto:
 
 ```bash
 supabase login
-supabase link --project-ref IL_TUO_PROJECT_REF
+supabase link --project-ref ptsltidnlbnzlyvdtnbo
+supabase secrets set ONESIGNAL_APP_ID=6547826d-804c-4a15-aa8b-3b6627ec28c2
+supabase secrets set ONESIGNAL_REST_API_KEY=INCOLLA_QUI_LA_CHIAVE_PRIVATA
+supabase secrets set CRON_SECRET=SCEGLI_UNA_PASSWORD_LUNGA_E_CASUALE
 supabase functions deploy process-notifications --no-verify-jwt
 supabase functions deploy send-broadcast --no-verify-jwt
 ```
 
-Il `project-ref` è la parte iniziale dell'indirizzo Supabase, prima di `.supabase.co`.
+`SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` vengono forniti automaticamente alle Edge Functions ospitate.
 
-## 4. Creare il Cron
+## 5. Crea il controllo automatico ogni minuto
 
-Nel pannello Supabase apri **Integrations → Cron → Create job**:
+In Supabase apri **Integrations → Cron → Create job** e configura:
 
-- Nome: `process-notifications-every-minute`
-- Frequenza: `* * * * *`
-- Tipo: **Supabase Edge Function**
-- Funzione: `process-notifications`
-- Metodo: `POST`
-- Header: `x-cron-secret` con lo stesso valore di `CRON_SECRET`
-- Body: `{}`
+- nome: `process-notifications-every-minute`
+- frequenza: `* * * * *`
+- tipo: HTTP request / Edge Function
+- metodo: `POST`
+- URL:
+  `https://ptsltidnlbnzlyvdtnbo.supabase.co/functions/v1/process-notifications`
+- header:
+  `x-cron-secret: LA_STESSA_PASSWORD_DEL_PUNTO_4`
+- body: `{}`
 
-## 5. Test immediato
+Se l’interfaccia Cron offre direttamente l’elenco delle Edge Functions, seleziona `process-notifications`, aggiungi lo stesso header e usa la frequenza ogni minuto.
 
-1. Accedi nell'app col profilo amministratore e verifica che le notifiche siano attive.
-2. Accedi come cliente sul telefono cliente e attiva le notifiche: il frontend associa il numero come External ID OneSignal.
-3. Crea una prenotazione cliente: l'amministratore deve ricevere `Nuova prenotazione` entro circa un minuto.
-4. Sposta la prenotazione: admin e cliente devono ricevere l'avviso.
-5. Annullala: admin e cliente devono ricevere l'avviso.
-6. Dall'Area Salone usa **Comunicazioni ai clienti → Invia a tutti**.
+## 6. Test rapido
 
-## Controllo coda
+1. Sul telefono dell’amministratore entra nell’app con l’account admin e lascia attive le notifiche. Il frontend associa quel dispositivo all’External ID ricavato dal telefono.
+2. Da un altro account crea una prenotazione.
+3. Per non aspettare il Cron, apri **Edge Functions → process-notifications → Test** e invia una richiesta POST con header `x-cron-secret`.
+4. Deve arrivare la push “Nuova prenotazione”.
+5. Sposta e poi annulla una prenotazione per provare gli altri eventi.
+6. Nell’Area Salone usa “Invia una notifica ai clienti” per provare il broadcast.
 
-Nel SQL Editor:
+## Controllo errori
 
-```sql
-select id, kind, recipient_type, title, scheduled_for, status, attempts, last_error
-from public.notification_jobs
-order by id desc
-limit 50;
-```
+In **Table Editor → notification_jobs**:
 
-Se un messaggio non arriva, questa query mostra l'errore preciso restituito da OneSignal.
+- `pending`: attende l’orario o il prossimo giro;
+- `processing`: in lavorazione;
+- `sent`: inviata;
+- `failed`: fallita dopo 5 tentativi;
+- `cancelled`: promemoria non più valido.
+
+La colonna `last_error` mostra l’errore completo. Se la push admin non arriva, verifica che il record admin in `customers` abbia `is_admin = true`, un telefono valido e che sullo stesso telefono sia stato eseguito l’accesso nell’app dopo l’attivazione delle notifiche.
+
+## Sicurezza
+
+La REST API Key di OneSignal resta soltanto nei **Secrets** di Supabase. Il broadcast verifica sul backend che `access_token` appartenga davvero a un amministratore. La tabella della coda non è accessibile dal sito pubblico.

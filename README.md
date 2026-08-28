@@ -44,3 +44,12 @@ Il permesso e le notifiche locali funzionano già. I promemoria programmati quan
 3. Apri l'Area Salone e usa **Aggiungi cliente**.
 
 L'agenda si aggiorna automaticamente ogni 15 secondi mentre è aperta e subito quando torni nell'app.
+
+\n## Versione 28 — Taglio bambino\n
+- Aggiunto al listino iniziale **Taglio bambino (0-10 anni) — 12 €**.
+- Aggiunto alla scelta del trattamento durante la prenotazione.
+- Aggiunto anche alla prenotazione manuale dall'Area Salone.
+- Cache PWA aggiornata a V28.
+- Eseguire `supabase-v28-taglio-bambino.sql` dopo `supabase-v16-prenotazioni-manuali.sql`.
+
+**Importante:** la prenotazione online del cliente usa anche la funzione Supabase `create_booking`, che non è presente nei file SQL inclusi in questo pacchetto. Nella funzione già presente nel database va aggiunto `when 'Taglio bambino (0-10 anni)' then 12` nel CASE che determina il prezzo; altrimenti l'opzione compare nell'app ma il database può rifiutarla.

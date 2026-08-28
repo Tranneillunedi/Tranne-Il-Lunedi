@@ -1216,9 +1216,42 @@ window.addEventListener('tranne:onesignal-ready', () => {
 
 // notification tutorial fallback v17
 
+// PWA: aggiornamento automatico anche quando l'app viene aperta dalla Home di iPhone.
+// Il controllo viene eseguito all'avvio e quando l'app torna in primo piano.
+// Non viene richiesta alcuna reinstallazione: il Service Worker aggiorna la cache
+// e, grazie alla strategia network-first, l'ultima versione online viene usata
+// appena disponibile (con fallback offline).
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./service-worker.js', { scope: './' }).catch(console.error);
+  let tranneSwRegistration = null;
+
+  const checkForAppUpdate = async () => {
+    try {
+      if (!tranneSwRegistration) return;
+      await tranneSwRegistration.update();
+    } catch (error) {
+      // Se siamo offline, non interrompere l'app: il worker userà la cache.
+      console.debug('Controllo aggiornamento PWA non disponibile:', error);
+    }
+  };
+
+  window.addEventListener('load', async () => {
+    try {
+      tranneSwRegistration = await navigator.serviceWorker.register('./service-worker.js', {
+        scope: './',
+        updateViaCache: 'none'
+      });
+      await checkForAppUpdate();
+    } catch (error) {
+      console.error('Registrazione Service Worker non riuscita:', error);
+    }
+  });
+
+  // Utile soprattutto per le app aggiunte alla Home: quando l'utente torna
+  // nell'app, chiediamo subito al browser di verificare una nuova versione.
+  window.addEventListener('pageshow', checkForAppUpdate);
+  window.addEventListener('focus', checkForAppUpdate);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') checkForAppUpdate();
   });
 }
 
