@@ -292,12 +292,20 @@ form.addEventListener('submit', async event => {
 
   const [service] = serviceSelect.value.split('|');
 
-  const { data, error } = await supabaseClient.rpc('create_booking', {
-    p_access_token: customerToken(),
-    p_service: service,
-    p_booking_date: dateInput.value,
-    p_booking_time: timeInput.value
-  });
+  const bookingRpc = service === 'Aggiusta vari'
+    ? supabaseClient.rpc('create_adjustment_booking', {
+        p_access_token: customerToken(),
+        p_booking_date: dateInput.value,
+        p_booking_time: timeInput.value
+      })
+    : supabaseClient.rpc('create_booking', {
+        p_access_token: customerToken(),
+        p_service: service,
+        p_booking_date: dateInput.value,
+        p_booking_time: timeInput.value
+      });
+
+  const { data, error } = await bookingRpc;
 
   if (error) {
     console.error(error);
@@ -775,6 +783,57 @@ function allHalfHourTimes() {
   return values;
 }
 
+function fillSingleSlotTimeSelect() {
+  const select = document.getElementById('slotBlockTime');
+  if (!select || select.options.length) return;
+  allHalfHourTimes().forEach(value => select.add(new Option(value, value)));
+  select.value = '09:00';
+}
+
+async function renderSingleSlotBlocks() {
+  if (!currentIsAdmin || !customerToken()) return;
+  const list = document.getElementById('slotBlockList');
+  if (!list) return;
+
+  const { data, error } = await supabaseClient.rpc('get_admin_slot_blocks', {
+    p_access_token: customerToken()
+  });
+  if (error) {
+    console.error(error);
+    list.innerHTML = '<div class="empty-state">Impossibile caricare i blocchi singoli.</div>';
+    return;
+  }
+
+  list.innerHTML = '';
+  if (!(data || []).length) {
+    list.innerHTML = '<div class="empty-state">Nessuna casella bloccata.</div>';
+    return;
+  }
+
+  (data || []).forEach(item => {
+    const element = document.createElement('div');
+    element.className = 'management-item';
+    element.innerHTML = `
+      <div>
+        <strong>${item.block_date} · ${String(item.block_time).slice(0,5)} · Casella ${item.slot_number}</strong>
+        <span>${item.reason || 'Casella bloccata'}</span>
+      </div>
+      <button class="management-delete" type="button" aria-label="Elimina">×</button>
+    `;
+    element.querySelector('button').addEventListener('click', async () => {
+      if (!confirm('Sbloccare questa casella?')) return;
+      const { error } = await supabaseClient.rpc('delete_admin_slot_block', {
+        p_access_token: customerToken(),
+        p_id: item.item_id
+      });
+      if (error) return alert(error.message);
+      await renderSingleSlotBlocks();
+      await renderAdmin();
+    });
+    list.appendChild(element);
+  });
+}
+
 function fillBlockTimeSelects() {
   const start = document.getElementById('blockStart');
   const end = document.getElementById('blockEnd');
@@ -969,12 +1028,39 @@ document.getElementById('saveTimeBlockBtn')?.addEventListener('click', async () 
   await renderClosuresAndBlocks();
 });
 
-fillBlockTimeSelects();
+document.getElementById('saveSlotBlockBtn')?.addEventListener('click', async () => {
+  const date = document.getElementById('slotBlockDate').value;
+  const time = document.getElementById('slotBlockTime').value;
+  const slotNumber = Number(document.getElementById('slotBlockNumber').value);
+  const reason = document.getElementById('slotBlockReason').value.trim();
+
+  if (!date) return alert('Seleziona la data.');
+  if (!time) return alert('Seleziona l’orario.');
+  if (![1, 2].includes(slotNumber)) return alert('Casella non valida.');
+
+  const { error } = await supabaseClient.rpc('create_admin_slot_block', {
+    p_access_token: customerToken(),
+    p_block_date: date,
+    p_block_time: time,
+    p_slot_number: slotNumber,
+    p_reason: reason
+  });
+
+  if (error) return alert(error.message);
+
+  document.getElementById('slotBlockReason').value = '';
+  notify(`Casella ${slotNumber} bloccata.`, 'success');
+  await renderSingleSlotBlocks();
+  await renderAdmin();
+});
+
+fillBlockTimeSelects();\nfillSingleSlotTimeSelect();
 
 const renderAdminOriginal = renderAdmin;
 renderAdmin = async function() {
   await renderAdminOriginal();
   await renderClosuresAndBlocks();
+  await renderSingleSlotBlocks();
 };
 
 let deferredPrompt;

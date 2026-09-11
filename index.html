@@ -67,6 +67,15 @@
             <strong>5 €</strong>
           </article>
 
+          <article class="service-card" data-service="Aggiusta vari" data-price="3">
+            <span class="service-icon">🛠️</span>
+            <div>
+              <h3>Aggiusta vari</h3>
+              <p>Piccoli aggiusti e rifiniture</p>
+            </div>
+            <strong>3 €</strong>
+          </article>
+
           <article class="service-card" data-service="Completo" data-price="22">
             <span class="service-icon">🔥</span>
             <div>
@@ -107,7 +116,8 @@
             <select id="service" required>
               <option value="">Seleziona un servizio</option>
               <option value="Taglio|17">Taglio — 17 €</option>
-              <option value="Taglio bambino (0-10 anni)|12">Taglio bambino (0-10 anni) — 12 €</option>
+              <option value="Taglio bambino (0-10 anni)|12">Taglio bambino (0-10 anni) — 12 €</option> 
+              <option value="Aggiusta vari|3">Aggiusta vari — 3 €</option>
               <option value="Barba|5">Barba — 5 €</option>
               <option value="Completo|22">Completo — 22 €</option>
             </select>
@@ -263,6 +273,35 @@
             <button id="saveTimeBlockBtn" class="primary-btn full" type="button">Blocca fascia</button>
             <div id="timeBlockList" class="management-list"></div>
           </div>
+          <div class="management-card">
+            <p class="eyebrow">BLOCCO SINGOLA CASELLA</p>
+            <h3>Blocca una sola casella</h3>
+            <small>Puoi bloccare la casella 1 oppure la casella 2 senza fermare l’altra nello stesso orario.</small>
+            <div class="form-block">
+              <label for="slotBlockDate">Data</label>
+              <input id="slotBlockDate" type="date" />
+            </div>
+            <div class="form-grid">
+              <div class="form-block">
+                <label for="slotBlockTime">Orario</label>
+                <select id="slotBlockTime"></select>
+              </div>
+              <div class="form-block">
+                <label for="slotBlockNumber">Casella</label>
+                <select id="slotBlockNumber">
+                  <option value="1">Casella 1</option>
+                  <option value="2">Casella 2</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-block">
+              <label for="slotBlockReason">Motivo</label>
+              <input id="slotBlockReason" type="text" placeholder="Impegno, pausa, appuntamento..." />
+            </div>
+            <button id="saveSlotBlockBtn" class="primary-btn full" type="button">Blocca casella</button>
+            <div id="slotBlockList" class="management-list"></div>
+          </div>
+
         </div>
 
 

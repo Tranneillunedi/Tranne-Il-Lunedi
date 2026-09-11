@@ -53,3 +53,11 @@ L'agenda si aggiorna automaticamente ogni 15 secondi mentre è aperta e subito q
 - Eseguire `supabase-v28-taglio-bambino.sql` dopo `supabase-v16-prenotazioni-manuali.sql`.
 
 **Importante:** la prenotazione online del cliente usa anche la funzione Supabase `create_booking`, che non è presente nei file SQL inclusi in questo pacchetto. Nella funzione già presente nel database va aggiunto `when 'Taglio bambino (0-10 anni)' then 12` nel CASE che determina il prezzo; altrimenti l'opzione compare nell'app ma il database può rifiutarla.
+
+
+## Versione 29 — Caselle singole + Aggiusta vari
+- Aggiunto il blocco indipendente della **Casella 1** o **Casella 2** per ogni singolo orario.
+- Il blocco di una casella lascia disponibile l'altra casella nello stesso orario.
+- Aggiunto **Aggiusta vari — 3 €** al listino e alla prenotazione.
+- Aggiunto il relativo RPC Supabase senza sostituire la funzione `create_booking` già esistente.
+- Per il nuovo sistema è necessario eseguire `supabase-v29-caselle-aggiusta-vari.sql` in Supabase.
