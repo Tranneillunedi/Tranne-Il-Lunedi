@@ -292,20 +292,12 @@ form.addEventListener('submit', async event => {
 
   const [service] = serviceSelect.value.split('|');
 
-  const bookingRpc = service === 'Aggiusta vari'
-    ? supabaseClient.rpc('create_adjustment_booking', {
-        p_access_token: customerToken(),
-        p_booking_date: dateInput.value,
-        p_booking_time: timeInput.value
-      })
-    : supabaseClient.rpc('create_booking', {
-        p_access_token: customerToken(),
-        p_service: service,
-        p_booking_date: dateInput.value,
-        p_booking_time: timeInput.value
-      });
-
-  const { data, error } = await bookingRpc;
+  const { data, error } = await supabaseClient.rpc('create_booking', {
+    p_access_token: customerToken(),
+    p_service: service,
+    p_booking_date: dateInput.value,
+    p_booking_time: timeInput.value
+  });
 
   if (error) {
     console.error(error);
@@ -783,57 +775,6 @@ function allHalfHourTimes() {
   return values;
 }
 
-function fillSingleSlotTimeSelect() {
-  const select = document.getElementById('slotBlockTime');
-  if (!select || select.options.length) return;
-  allHalfHourTimes().forEach(value => select.add(new Option(value, value)));
-  select.value = '09:00';
-}
-
-async function renderSingleSlotBlocks() {
-  if (!currentIsAdmin || !customerToken()) return;
-  const list = document.getElementById('slotBlockList');
-  if (!list) return;
-
-  const { data, error } = await supabaseClient.rpc('get_admin_slot_blocks', {
-    p_access_token: customerToken()
-  });
-  if (error) {
-    console.error(error);
-    list.innerHTML = '<div class="empty-state">Impossibile caricare i blocchi singoli.</div>';
-    return;
-  }
-
-  list.innerHTML = '';
-  if (!(data || []).length) {
-    list.innerHTML = '<div class="empty-state">Nessuna casella bloccata.</div>';
-    return;
-  }
-
-  (data || []).forEach(item => {
-    const element = document.createElement('div');
-    element.className = 'management-item';
-    element.innerHTML = `
-      <div>
-        <strong>${item.block_date} · ${String(item.block_time).slice(0,5)} · Casella ${item.slot_number}</strong>
-        <span>${item.reason || 'Casella bloccata'}</span>
-      </div>
-      <button class="management-delete" type="button" aria-label="Elimina">×</button>
-    `;
-    element.querySelector('button').addEventListener('click', async () => {
-      if (!confirm('Sbloccare questa casella?')) return;
-      const { error } = await supabaseClient.rpc('delete_admin_slot_block', {
-        p_access_token: customerToken(),
-        p_id: item.item_id
-      });
-      if (error) return alert(error.message);
-      await renderSingleSlotBlocks();
-      await renderAdmin();
-    });
-    list.appendChild(element);
-  });
-}
-
 function fillBlockTimeSelects() {
   const start = document.getElementById('blockStart');
   const end = document.getElementById('blockEnd');
@@ -1028,39 +969,12 @@ document.getElementById('saveTimeBlockBtn')?.addEventListener('click', async () 
   await renderClosuresAndBlocks();
 });
 
-document.getElementById('saveSlotBlockBtn')?.addEventListener('click', async () => {
-  const date = document.getElementById('slotBlockDate').value;
-  const time = document.getElementById('slotBlockTime').value;
-  const slotNumber = Number(document.getElementById('slotBlockNumber').value);
-  const reason = document.getElementById('slotBlockReason').value.trim();
-
-  if (!date) return alert('Seleziona la data.');
-  if (!time) return alert('Seleziona l’orario.');
-  if (![1, 2].includes(slotNumber)) return alert('Casella non valida.');
-
-  const { error } = await supabaseClient.rpc('create_admin_slot_block', {
-    p_access_token: customerToken(),
-    p_block_date: date,
-    p_block_time: time,
-    p_slot_number: slotNumber,
-    p_reason: reason
-  });
-
-  if (error) return alert(error.message);
-
-  document.getElementById('slotBlockReason').value = '';
-  notify(`Casella ${slotNumber} bloccata.`, 'success');
-  await renderSingleSlotBlocks();
-  await renderAdmin();
-});
-
-fillBlockTimeSelects();\nfillSingleSlotTimeSelect();
+fillBlockTimeSelects();
 
 const renderAdminOriginal = renderAdmin;
 renderAdmin = async function() {
   await renderAdminOriginal();
   await renderClosuresAndBlocks();
-  await renderSingleSlotBlocks();
 };
 
 let deferredPrompt;
@@ -1302,42 +1216,9 @@ window.addEventListener('tranne:onesignal-ready', () => {
 
 // notification tutorial fallback v17
 
-// PWA: aggiornamento automatico anche quando l'app viene aperta dalla Home di iPhone.
-// Il controllo viene eseguito all'avvio e quando l'app torna in primo piano.
-// Non viene richiesta alcuna reinstallazione: il Service Worker aggiorna la cache
-// e, grazie alla strategia network-first, l'ultima versione online viene usata
-// appena disponibile (con fallback offline).
 if ('serviceWorker' in navigator) {
-  let tranneSwRegistration = null;
-
-  const checkForAppUpdate = async () => {
-    try {
-      if (!tranneSwRegistration) return;
-      await tranneSwRegistration.update();
-    } catch (error) {
-      // Se siamo offline, non interrompere l'app: il worker userà la cache.
-      console.debug('Controllo aggiornamento PWA non disponibile:', error);
-    }
-  };
-
-  window.addEventListener('load', async () => {
-    try {
-      tranneSwRegistration = await navigator.serviceWorker.register('./service-worker.js', {
-        scope: './',
-        updateViaCache: 'none'
-      });
-      await checkForAppUpdate();
-    } catch (error) {
-      console.error('Registrazione Service Worker non riuscita:', error);
-    }
-  });
-
-  // Utile soprattutto per le app aggiunte alla Home: quando l'utente torna
-  // nell'app, chiediamo subito al browser di verificare una nuova versione.
-  window.addEventListener('pageshow', checkForAppUpdate);
-  window.addEventListener('focus', checkForAppUpdate);
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') checkForAppUpdate();
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./service-worker.js', { scope: './' }).catch(console.error);
   });
 }
 
@@ -1412,62 +1293,6 @@ manualBookingForm?.addEventListener('submit', async event => {
   closeManualBookingModal();
   notify('Cliente aggiunto in agenda.', 'success');
   await renderAdmin();
-});
-
-
-
-// V27 — invio comunicazioni generali dall'Area Salone.
-const sendBroadcastBtn = document.getElementById('sendBroadcastBtn');
-sendBroadcastBtn?.addEventListener('click', async () => {
-  const titleInput = document.getElementById('broadcastTitle');
-  const messageInput = document.getElementById('broadcastMessage');
-  const status = document.getElementById('broadcastStatus');
-  const title = titleInput.value.trim();
-  const message = messageInput.value.trim();
-
-  if (!currentIsAdmin || !customerToken()) {
-    alert('Accesso amministratore richiesto.');
-    return;
-  }
-  if (title.length < 3 || message.length < 3) {
-    alert('Inserisci titolo e messaggio.');
-    return;
-  }
-  if (!confirm(`Inviare questa notifica a tutti?\n\n${title}\n${message}`)) return;
-
-  sendBroadcastBtn.disabled = true;
-  sendBroadcastBtn.textContent = 'Invio…';
-  status.textContent = '';
-
-  try {
-    const response = await fetch(`${window.SUPABASE_URL}/functions/v1/send-broadcast`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': window.SUPABASE_PUBLISHABLE_KEY,
-        'Authorization': `Bearer ${window.SUPABASE_PUBLISHABLE_KEY}`
-      },
-      body: JSON.stringify({
-        access_token: customerToken(),
-        title,
-        message,
-        url: 'https://tranneillunedi.github.io/Tranne-Il-Lunedi/'
-      })
-    });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(result.error || 'Invio non riuscito');
-    titleInput.value = '';
-    messageInput.value = '';
-    status.textContent = `Notifica inviata (${result.recipients ?? 0} destinatari).`;
-    notify('Messaggio inviato a tutti.', 'success');
-  } catch (error) {
-    console.error(error);
-    status.textContent = `Errore: ${error.message}`;
-    alert(`Non è stato possibile inviare la notifica: ${error.message}`);
-  } finally {
-    sendBroadcastBtn.disabled = false;
-    sendBroadcastBtn.textContent = 'Invia a tutti';
-  }
 });
 
 // Aggiornamento automatico dell'agenda mentre l'Area Salone è aperta.

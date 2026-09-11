@@ -1,4 +1,4 @@
-// OneSignal Web Push — Tranne il Lunedì v27
+// OneSignal Web Push — Tranne il Lunedì v22 diagnostica
 // La chiave API privata NON deve mai essere inserita in questo file.
 window.OneSignalDeferred = window.OneSignalDeferred || [];
 window.tranneOneSignalReady = false;
@@ -11,54 +11,13 @@ window.tranneOneSignalReadyPromise = new Promise((resolve) => {
 });
 
 const ONESIGNAL_APP_ID = '6547826d-804c-4a15-aa8b-3b6627ec28c2';
-// Il percorso è relativo alla pagina GitHub Pages, già dentro /Tranne-Il-Lunedi/.
-// Non ripetere 'Tranne-Il-Lunedi', altrimenti il browser cerca una cartella duplicata.
-const ONESIGNAL_WORKER_PATH = 'onesignal/OneSignalSDKWorker.js';
+// OneSignal richiede un percorso relativo alla root dell'origine, senza slash iniziale.
+const ONESIGNAL_WORKER_PATH = 'Tranne-Il-Lunedi/onesignal/OneSignalSDKWorker.js';
 const ONESIGNAL_WORKER_SCOPE = '/Tranne-Il-Lunedi/onesignal/';
-
-async function ensureOneSignalWorker() {
-  if (!('serviceWorker' in navigator)) {
-    throw new Error('Il browser non supporta i service worker.');
-  }
-
-  // Registrazione preventiva verificata sul sito: evita che l'SDK riceva
-  // una vecchia risposta 404 durante la propria registrazione automatica.
-  const workerUrl = new URL(ONESIGNAL_WORKER_PATH, document.baseURI).pathname;
-  const registration = await navigator.serviceWorker.register(workerUrl, {
-    scope: ONESIGNAL_WORKER_SCOPE,
-    updateViaCache: 'none'
-  });
-
-  await registration.update().catch(() => {});
-
-  if (!registration.active) {
-    const worker = registration.installing || registration.waiting;
-    if (worker) {
-      await new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => reject(new Error('Timeout attivazione worker OneSignal.')), 15000);
-        const check = () => {
-          if (worker.state === 'activated' || registration.active) {
-            clearTimeout(timeout);
-            resolve();
-          } else if (worker.state === 'redundant') {
-            clearTimeout(timeout);
-            reject(new Error('Il worker OneSignal è diventato redundant.'));
-          }
-        };
-        worker.addEventListener('statechange', check);
-        check();
-      });
-    }
-  }
-
-  return registration;
-}
 
 window.OneSignalDeferred.push(async function (OneSignal) {
   try {
-    OneSignal.Debug?.setLogLevel?.('warn');
-
-    await ensureOneSignalWorker();
+    OneSignal.Debug?.setLogLevel?.('trace');
 
     await OneSignal.init({
       appId: ONESIGNAL_APP_ID,
@@ -120,7 +79,6 @@ async function collectPushDiagnostics(OneSignal) {
     userAgent: navigator.userAgent,
     workerPath: ONESIGNAL_WORKER_PATH,
     workerScope: ONESIGNAL_WORKER_SCOPE,
-    workerResolvedUrl: new URL(ONESIGNAL_WORKER_PATH, location.href).href,
     ...state,
     registrations: [],
     nativeSubscription: null
@@ -164,7 +122,7 @@ function formatDiagnostics(diagnostics) {
     : 'nessun service worker registrato';
 
   return [
-    'DIAGNOSTICA PUSH v27',
+    'DIAGNOSTICA PUSH v22',
     `Permesso browser: ${diagnostics.permissionNative}`,
     `Permesso OneSignal: ${diagnostics.permission}`,
     `Opted-in: ${diagnostics.optedIn}`,
@@ -173,7 +131,6 @@ function formatDiagnostics(diagnostics) {
     `Subscription browser: ${diagnostics.nativeSubscription ? 'presente' : 'assente'}`,
     `Modalità PWA: ${diagnostics.standalone ? 'sì' : 'no'}`,
     `Contesto HTTPS: ${diagnostics.secureContext ? 'sì' : 'no'}`,
-    `Worker URL: ${diagnostics.workerResolvedUrl}`,
     `Worker attesi: ${ONESIGNAL_WORKER_SCOPE}`,
     `Worker registrati:\n${workers}`,
     diagnostics.diagnosticError ? `Errore diagnostica: ${diagnostics.diagnosticError}` : ''

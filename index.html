@@ -8,9 +8,9 @@
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png" />
   <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png" />
-  <link rel="stylesheet" href="style.css?v=27" />
+  <link rel="stylesheet" href="style.css?v=22" />
   <!-- La coda OneSignal deve essere creata prima di caricare il Web SDK. -->
-  <script src="onesignal.js?v=27"></script>
+  <script src="onesignal.js?v=22"></script>
   <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
   <title>Tranne il Lunedì</title>
 </head>
@@ -49,15 +49,6 @@
             <strong>17 €</strong>
           </article>
 
-          <article class="service-card" data-service="Taglio bambino (0-10 anni)" data-price="12">
-            <span class="service-icon">👦</span>
-            <div>
-              <h3>Taglio bambino</h3>
-              <p>0–10 anni · Durata indicativa: 30 minuti</p>
-            </div>
-            <strong>12 €</strong>
-          </article>
-
           <article class="service-card" data-service="Barba" data-price="5">
             <span class="service-icon">🧔</span>
             <div>
@@ -65,15 +56,6 @@
               <p>Cura e definizione</p>
             </div>
             <strong>5 €</strong>
-          </article>
-
-          <article class="service-card" data-service="Aggiusta vari" data-price="3">
-            <span class="service-icon">🛠️</span>
-            <div>
-              <h3>Aggiusta vari</h3>
-              <p>Piccoli aggiusti e rifiniture</p>
-            </div>
-            <strong>3 €</strong>
           </article>
 
           <article class="service-card" data-service="Completo" data-price="22">
@@ -116,8 +98,6 @@
             <select id="service" required>
               <option value="">Seleziona un servizio</option>
               <option value="Taglio|17">Taglio — 17 €</option>
-              <option value="Taglio bambino (0-10 anni)|12">Taglio bambino (0-10 anni) — 12 €</option> 
-              <option value="Aggiusta vari|3">Aggiusta vari — 3 €</option>
               <option value="Barba|5">Barba — 5 €</option>
               <option value="Completo|22">Completo — 22 €</option>
             </select>
@@ -273,51 +253,6 @@
             <button id="saveTimeBlockBtn" class="primary-btn full" type="button">Blocca fascia</button>
             <div id="timeBlockList" class="management-list"></div>
           </div>
-          <div class="management-card">
-            <p class="eyebrow">BLOCCO SINGOLA CASELLA</p>
-            <h3>Blocca una sola casella</h3>
-            <small>Puoi bloccare la casella 1 oppure la casella 2 senza fermare l’altra nello stesso orario.</small>
-            <div class="form-block">
-              <label for="slotBlockDate">Data</label>
-              <input id="slotBlockDate" type="date" />
-            </div>
-            <div class="form-grid">
-              <div class="form-block">
-                <label for="slotBlockTime">Orario</label>
-                <select id="slotBlockTime"></select>
-              </div>
-              <div class="form-block">
-                <label for="slotBlockNumber">Casella</label>
-                <select id="slotBlockNumber">
-                  <option value="1">Casella 1</option>
-                  <option value="2">Casella 2</option>
-                </select>
-              </div>
-            </div>
-            <div class="form-block">
-              <label for="slotBlockReason">Motivo</label>
-              <input id="slotBlockReason" type="text" placeholder="Impegno, pausa, appuntamento..." />
-            </div>
-            <button id="saveSlotBlockBtn" class="primary-btn full" type="button">Blocca casella</button>
-            <div id="slotBlockList" class="management-list"></div>
-          </div>
-
-        </div>
-
-
-        <div class="management-card broadcast-card">
-          <p class="eyebrow">MESSAGGIO A TUTTI</p>
-          <h3>Invia una notifica ai clienti</h3>
-          <div class="form-block">
-            <label for="broadcastTitle">Titolo</label>
-            <input id="broadcastTitle" type="text" maxlength="60" placeholder="Es. Chiusura per ferie" />
-          </div>
-          <div class="form-block">
-            <label for="broadcastMessage">Messaggio</label>
-            <textarea id="broadcastMessage" rows="3" maxlength="180" placeholder="Es. Saremo chiusi dal 10 al 20 agosto."></textarea>
-          </div>
-          <button id="sendBroadcastBtn" class="primary-btn full" type="button">Invia a tutti</button>
-          <small id="broadcastStatus" class="broadcast-status"></small>
         </div>
 
         <div class="booking-list-wrap">
@@ -555,7 +490,7 @@
           <div class="form-block"><label for="manualLastName">Cognome</label><input id="manualLastName" required minlength="2" autocomplete="family-name"></div>
         </div>
         <div class="form-block"><label for="manualPhone">Telefono <small>(facoltativo)</small></label><input id="manualPhone" inputmode="tel" autocomplete="tel" placeholder="Es. 333 1234567"></div>
-        <div class="form-block"><label for="manualService">Servizio</label><select id="manualService" required><option value="Taglio">Taglio — 17 €</option><option value="Taglio bambino (0-10 anni)">Taglio bambino (0-10 anni) — 12 €</option><option value="Completo">Completo — 22 €</option><option value="Barba">Barba — 5 €</option></select></div>
+        <div class="form-block"><label for="manualService">Servizio</label><select id="manualService" required><option value="Taglio">Taglio — 17 €</option><option value="Completo">Completo — 22 €</option><option value="Barba">Barba — 5 €</option></select></div>
         <div class="form-grid">
           <div class="form-block"><label for="manualDate">Data</label><input id="manualDate" type="date" required></div>
           <div class="form-block"><label for="manualTime">Ora</label><select id="manualTime" required></select></div>
@@ -568,7 +503,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js"></script>
-  <script src="app.js?v=28"></script>
+  <script src="app.js?v=22"></script>
 
 </body>
 </html>
