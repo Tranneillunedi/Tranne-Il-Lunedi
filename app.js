@@ -115,6 +115,19 @@ document.querySelectorAll('.service-card').forEach(card => {
   });
 });
 
+function isPastBookingSlot(date, time) {
+  if (!date || !time) return false;
+  const now = new Date();
+  const today = localISO(now);
+  if (date < today) return true;
+  if (date > today) return false;
+
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const [hour, minute] = String(time).slice(0, 5).split(':').map(Number);
+  const slotMinutes = hour * 60 + minute;
+  return slotMinutes <= currentMinutes;
+}
+
 function makeSlots() {
   slotsContainer.innerHTML = '';
   for (let hour = 9; hour < 20; hour++) {
@@ -126,7 +139,11 @@ function makeSlots() {
       button.textContent = value;
       button.dataset.value = value;
 
-      if ((availability[value] || 0) >= 2) {
+      if (isPastBookingSlot(dateInput.value, value)) {
+        button.disabled = true;
+        button.classList.add('unavailable');
+        button.title = 'Orario già trascorso';
+      } else if ((availability[value] || 0) >= 2) {
         button.disabled = true;
         button.classList.add('unavailable');
       }
@@ -289,6 +306,12 @@ form.addEventListener('submit', async event => {
   }
   if (!timeInput.value) {
     alert('Seleziona un orario.');
+    return;
+  }
+
+  if (isPastBookingSlot(dateInput.value, timeInput.value)) {
+    alert('Questo orario è già trascorso e non può essere prenotato.');
+    await loadAvailability(dateInput.value);
     return;
   }
 
@@ -813,7 +836,11 @@ async function openChangeTimeModal(booking) {
       button.textContent = value;
 
       const adjustedCount = value === booking.time ? count - 1 : count;
-      if (adjustedCount >= 2) {
+      if (isPastBookingSlot(booking.date, value) && value !== booking.time) {
+        button.disabled = true;
+        button.classList.add('unavailable');
+        button.title = 'Orario già trascorso';
+      } else if (adjustedCount >= 2) {
         button.disabled = true;
         button.classList.add('unavailable');
       }
