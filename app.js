@@ -27,6 +27,7 @@ const monthNames = [
 ];
 
 let availability = {};
+let remoteSlotBlocks = {};
 let currentIsAdmin = false;
 
 function notify(message, type = '') {
@@ -161,6 +162,7 @@ async function loadAvailability(date) {
   (data || []).forEach(row => {
     availability[String(row.booking_time).slice(0, 5)] = Number(row.occupied);
   });
+  await loadSlotBlocks(date);
   makeSlots();
 }
 
@@ -341,6 +343,99 @@ function formatLongDate(iso) {
   }).format(new Date(`${iso}T12:00:00`));
 }
 
+// V31 — Blocchi persistenti della singola casella (Supabase).
+function isRemoteSlotBlocked(date, time, slotIndex) {
+  return Boolean(remoteSlotBlocks[`${date}|${time}|${slotIndex}`]);
+}
+
+async function loadSlotBlocks(date) {
+  remoteSlotBlocks = {};
+  if (!date) return;
+  const { data, error } = await supabaseClient.rpc('get_day_slot_blocks', {
+    p_booking_date: date
+  });
+  if (error) {
+    console.error(error);
+    return;
+  }
+  (data || []).forEach(row => {
+    remoteSlotBlocks[`${date}|${String(row.block_time).slice(0,5)}|${Number(row.slot_index)}`] = true;
+  });
+}
+
+const slotActionModal = document.getElementById('slotActionModal');
+const slotActionInfo = document.getElementById('slotActionInfo');
+const blockSlotBtn = document.getElementById('blockSlotBtn');
+const unblockSlotBtn = document.getElementById('unblockSlotBtn');
+const addClientSlotBtn = document.getElementById('addClientSlotBtn');
+const closeSlotAction = document.getElementById('closeSlotAction');
+
+let selectedAdminSlot = null;
+let manualTargetSlot = null;
+
+function closeSlotActionModal() {
+  slotActionModal?.classList.add('hidden');
+  document.body.classList.remove('tutorial-open');
+  selectedAdminSlot = null;
+}
+
+function openSlotActionModal(date, time, slotIndex) {
+  selectedAdminSlot = { date, time, slotIndex };
+  const blocked = isRemoteSlotBlocked(date, time, slotIndex);
+  document.getElementById('slotActionTitle').textContent = `${time} · Casella ${slotIndex + 1}`;
+  slotActionInfo.textContent = blocked
+    ? 'Questa casella è bloccata per tutti i clienti.'
+    : 'Scegli cosa vuoi fare con questa singola casella.';
+  blockSlotBtn?.classList.toggle('hidden', blocked);
+  unblockSlotBtn?.classList.toggle('hidden', !blocked);
+  slotActionModal?.classList.remove('hidden');
+  document.body.classList.add('tutorial-open');
+}
+
+closeSlotAction?.addEventListener('click', closeSlotActionModal);
+slotActionModal?.addEventListener('click', event => {
+  if (event.target === slotActionModal) closeSlotActionModal();
+});
+
+blockSlotBtn?.addEventListener('click', async () => {
+  if (!selectedAdminSlot) return;
+  const { date, time, slotIndex } = selectedAdminSlot;
+  const { error } = await supabaseClient.rpc('set_admin_slot_block', {
+    p_access_token: customerToken(), p_booking_date: date, p_booking_time: time,
+    p_slot_index: slotIndex, p_blocked: true
+  });
+  if (error) { alert(error.message || 'Impossibile bloccare la casella.'); return; }
+  await loadSlotBlocks(date);
+  closeSlotActionModal();
+  notify(`Casella ${time} · ${slotIndex + 1} bloccata.`, 'success');
+  await renderAdmin();
+});
+
+unblockSlotBtn?.addEventListener('click', async () => {
+  if (!selectedAdminSlot) return;
+  const { date, time, slotIndex } = selectedAdminSlot;
+  const { error } = await supabaseClient.rpc('set_admin_slot_block', {
+    p_access_token: customerToken(), p_booking_date: date, p_booking_time: time,
+    p_slot_index: slotIndex, p_blocked: false
+  });
+  if (error) { alert(error.message || 'Impossibile sbloccare la casella.'); return; }
+  await loadSlotBlocks(date);
+  closeSlotActionModal();
+  notify(`Casella ${time} · ${slotIndex + 1} sbloccata.`, 'success');
+  await renderAdmin();
+});
+
+addClientSlotBtn?.addEventListener('click', () => {
+  if (!selectedAdminSlot) return;
+  const { date, time, slotIndex } = selectedAdminSlot;
+  manualTargetSlot = { date, time, slotIndex };
+  closeSlotActionModal();
+  openManualBookingModal();
+  manualDate.value = date;
+  fillManualTimes();
+  manualTime.value = time;
+});
+
 async function renderAdmin() {
   if (!currentIsAdmin || !customerToken()) return;
 
@@ -364,8 +459,11 @@ async function renderAdmin() {
     date: row.booking_date,
     time: String(row.booking_time).slice(0, 5),
     source: row.booking_source || 'customer',
-    notes: row.notes || ''
+    notes: row.notes || '',
+    slotIndex: row.slot_index == null ? null : Number(row.slot_index)
   })).sort((a, b) => a.time.localeCompare(b.time));
+
+  await loadSlotBlocks(adminSelectedDate);
 
   document.getElementById('agendaDateTitle').textContent = formatLongDate(adminSelectedDate);
   document.getElementById('dailyCount').textContent = bookings.length;
@@ -396,13 +494,24 @@ async function renderAdmin() {
       for (let slot = 0; slot < 2; slot++) {
         const cell = document.createElement('div');
         cell.className = 'agenda-slot';
-        const booking = atTime[slot];
+        const explicitBooking = atTime.find(b => Number.isInteger(b.slotIndex) && b.slotIndex === slot);
+        const booking = explicitBooking || (!atTime.some(b => Number.isInteger(b.slotIndex)) ? atTime[slot] : null);
+        const remotelyBlocked = isRemoteSlotBlocked(adminSelectedDate, time, slot);
+
         if (booking) {
           cell.classList.add('filled');
           cell.innerHTML = `<strong>${booking.name}</strong><span>${booking.service} · ${booking.phone || 'senza telefono'}</span>${booking.source === 'salon' ? '<small class="booking-origin">SALONE</small>' : ''}`;
+        } else if (remotelyBlocked) {
+          cell.classList.add('locally-blocked');
+          cell.innerHTML = `<strong>Bloccato</strong><span>Clicca per sbloccare</span>`;
         } else {
-          cell.innerHTML = `<span>Libero</span>`;
+          cell.innerHTML = `<span>Libero</span><small>Clicca per gestire</small>`;
         }
+
+        if (!booking) {
+          cell.addEventListener('click', () => openSlotActionModal(adminSelectedDate, time, slot));
+        }
+
         row.appendChild(cell);
       }
 
@@ -1289,7 +1398,7 @@ function closeManualBookingModal() {
   document.body.classList.remove('tutorial-open');
 }
 
-document.getElementById('openManualBooking')?.addEventListener('click', openManualBookingModal);
+document.getElementById('openManualBooking')?.addEventListener('click', () => { manualTargetSlot = null; openManualBookingModal(); });
 document.getElementById('closeManualBooking')?.addEventListener('click', closeManualBookingModal);
 manualBookingModal?.addEventListener('click', event => {
   if (event.target === manualBookingModal) closeManualBookingModal();
@@ -1301,7 +1410,10 @@ manualBookingForm?.addEventListener('submit', async event => {
   saveButton.disabled = true;
   saveButton.textContent = 'Salvataggio…';
 
-  const { data, error } = await supabaseClient.rpc('create_booking_for_admin', {
+  const targetSlot = manualTargetSlot && manualTargetSlot.date === manualDate.value && manualTargetSlot.time === manualTime.value
+    ? manualTargetSlot.slotIndex : null;
+  const rpcName = targetSlot == null ? 'create_booking_for_admin' : 'create_booking_for_admin_slot';
+  const rpcArgs = {
     p_access_token: customerToken(),
     p_first_name: document.getElementById('manualFirstName').value.trim(),
     p_last_name: document.getElementById('manualLastName').value.trim(),
@@ -1310,7 +1422,9 @@ manualBookingForm?.addEventListener('submit', async event => {
     p_booking_date: manualDate.value,
     p_booking_time: manualTime.value,
     p_notes: document.getElementById('manualNotes').value.trim()
-  });
+  };
+  if (targetSlot != null) rpcArgs.p_slot_index = targetSlot;
+  const { data, error } = await supabaseClient.rpc(rpcName, rpcArgs);
 
   saveButton.disabled = false;
   saveButton.textContent = 'Salva prenotazione';
@@ -1324,6 +1438,7 @@ manualBookingForm?.addEventListener('submit', async event => {
   adminSelectedDate = manualDate.value;
   adminCalendar.setSelected(adminSelectedDate);
   closeManualBookingModal();
+  manualTargetSlot = null;
   notify('Cliente aggiunto in agenda.', 'success');
   await renderAdmin();
 });
