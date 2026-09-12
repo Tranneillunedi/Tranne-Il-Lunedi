@@ -125,7 +125,7 @@ function isPastBookingSlot(date, time) {
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
   const [hour, minute] = String(time).slice(0, 5).split(':').map(Number);
   const slotMinutes = hour * 60 + minute;
-  return slotMinutes <= currentMinutes;
+  return slotMinutes < currentMinutes;
 }
 
 function makeSlots() {
