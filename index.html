@@ -67,6 +67,15 @@
             <strong>5 €</strong>
           </article>
 
+          <article class="service-card" data-service="Aggiusti vari" data-price="3">
+            <span class="service-icon">✂️</span>
+            <div>
+              <h3>Aggiusti vari</h3>
+              <p>Piccoli aggiusti e rifiniture</p>
+            </div>
+            <strong>3 €</strong>
+          </article>
+
           <article class="service-card" data-service="Completo" data-price="22">
             <span class="service-icon">🔥</span>
             <div>
@@ -84,7 +93,7 @@
           </div>
           <div>
             <span>Disponibilità</span>
-            <strong>2 posti per ogni fascia oraria</strong>
+            <strong>2 caselle per ogni fascia oraria</strong>
           </div>
         </div>
       </section>
@@ -108,7 +117,7 @@
               <option value="">Seleziona un servizio</option>
               <option value="Taglio|17">Taglio — 17 €</option>
               <option value="Taglio bambino (0-10 anni)|12">Taglio bambino (0-10 anni) — 12 €</option>
-              <option value="Barba|5">Barba — 5 €</option>
+              <option value="Barba|5">Barba — 5 €</option><option value="Aggiusti vari|3">Aggiusti vari — 3 €</option>
               <option value="Completo|22">Completo — 22 €</option>
             </select>
           </div>
@@ -504,6 +513,20 @@
   </div>
 
 
+  <div id="slotActionModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="slotActionTitle">
+    <div class="modal-card">
+      <button id="closeSlotAction" class="modal-close" type="button" aria-label="Chiudi">×</button>
+      <p class="eyebrow">GESTIONE ORARIO</p>
+      <h2 id="slotActionTitle">Gestisci casella</h2>
+      <p id="slotActionInfo" class="notice"></p>
+      <div class="modal-actions">
+        <button id="blockSlotBtn" class="secondary-btn full" type="button">Blocca casella</button>
+        <button id="unblockSlotBtn" class="secondary-btn full hidden" type="button">Sblocca casella</button>
+        <button id="addClientSlotBtn" class="primary-btn full" type="button">Aggiungi cliente</button>
+      </div>
+    </div>
+  </div>
+
   <div id="manualBookingModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="manualBookingTitle">
     <div class="modal-card manual-booking-modal-card">
       <button id="closeManualBooking" class="modal-close" type="button" aria-label="Chiudi">×</button>
@@ -516,7 +539,7 @@
           <div class="form-block"><label for="manualLastName">Cognome</label><input id="manualLastName" required minlength="2" autocomplete="family-name"></div>
         </div>
         <div class="form-block"><label for="manualPhone">Telefono <small>(facoltativo)</small></label><input id="manualPhone" inputmode="tel" autocomplete="tel" placeholder="Es. 333 1234567"></div>
-        <div class="form-block"><label for="manualService">Servizio</label><select id="manualService" required><option value="Taglio">Taglio — 17 €</option><option value="Taglio bambino (0-10 anni)">Taglio bambino (0-10 anni) — 12 €</option><option value="Completo">Completo — 22 €</option><option value="Barba">Barba — 5 €</option></select></div>
+        <div class="form-block"><label for="manualService">Servizio</label><select id="manualService" required><option value="Taglio">Taglio — 17 €</option><option value="Taglio bambino (0-10 anni)">Taglio bambino (0-10 anni) — 12 €</option><option value="Completo">Completo — 22 €</option><option value="Barba">Barba — 5 €</option><option value="Aggiusti vari">Aggiusti vari — 3 €</option></select></div>
         <div class="form-grid">
           <div class="form-block"><label for="manualDate">Data</label><input id="manualDate" type="date" required></div>
           <div class="form-block"><label for="manualTime">Ora</label><select id="manualTime" required></select></div>
@@ -529,7 +552,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js"></script>
-  <script src="app.js?v=28"></script>
+  <script src="app.js?v=31"></script>
 
 </body>
 </html>

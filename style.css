@@ -1234,3 +1234,24 @@ body.tutorial-open {
 .broadcast-card { margin: 24px 0; }
 .broadcast-card textarea { width: 100%; resize: vertical; }
 .broadcast-status { display: block; min-height: 1.4em; margin-top: 10px; opacity: .8; }
+
+/* V30 — gestione singola casella agenda */
+.agenda-slot {
+  cursor: pointer;
+  position: relative;
+}
+.agenda-slot.filled {
+  cursor: default;
+}
+.agenda-slot.locally-blocked {
+  opacity: .72;
+  border-style: dashed;
+}
+.agenda-slot:not(.filled):hover {
+  transform: translateY(-1px);
+}
+.agenda-slot small {
+  display: block;
+  margin-top: 4px;
+  opacity: .65;
+}
