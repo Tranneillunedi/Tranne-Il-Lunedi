@@ -117,14 +117,31 @@ document.querySelectorAll('.service-card').forEach(card => {
 
 function isPastBookingSlot(date, time) {
   if (!date || !time) return false;
+
   const now = new Date();
   const today = localISO(now);
+
   if (date < today) return true;
   if (date > today) return false;
 
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
-  const [hour, minute] = String(time).slice(0, 5).split(':').map(Number);
-  const slotMinutes = hour * 60 + minute;
+  const currentMinutes =
+    now.getHours() * 60 + now.getMinutes();
+
+  const [hour, minute] =
+    String(time).slice(0, 5).split(':').map(Number);
+
+  const slotMinutes =
+    hour * 60 + minute;
+
+  // L'orario viene bloccato SOLO dal minuto successivo
+  // all'inizio dell'orario.
+  //
+  // 16:00 -> bloccato dalle 16:01
+  // 16:30 -> bloccato dalle 16:31
+  // 17:00 -> bloccato dalle 17:01
+  //
+  // Gli orari successivi rimangono disponibili.
+
   return slotMinutes < currentMinutes;
 }
 
