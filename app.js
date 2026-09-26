@@ -600,6 +600,201 @@ async function renderAdmin() {
   });
 }
 
+// ================== V33 — GESTIONALE (nuova sottosezione, sola aggiunta) ==================
+let gestionaleCursor = new Date();
+gestionaleCursor.setDate(1);
+let gestionaleClientsCache = null;
+
+function formatShortDate(iso) {
+  return new Intl.DateTimeFormat('it-IT', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric'
+  }).format(new Date(`${iso}T12:00:00`));
+}
+
+function switchAdminTab(tab) {
+  const isGestionale = tab === 'gestionale';
+  const agendaTabBtn = document.getElementById('adminTabAgenda');
+  const gestionaleTabBtn = document.getElementById('adminTabGestionale');
+
+  agendaTabBtn.classList.toggle('active', !isGestionale);
+  agendaTabBtn.setAttribute('aria-selected', String(!isGestionale));
+  gestionaleTabBtn.classList.toggle('active', isGestionale);
+  gestionaleTabBtn.setAttribute('aria-selected', String(isGestionale));
+
+  document.getElementById('adminAgendaView').classList.toggle('hidden', isGestionale);
+  document.getElementById('adminGestionaleView').classList.toggle('hidden', !isGestionale);
+
+  if (isGestionale) {
+    renderGestionale();
+    renderGestionaleClients();
+  }
+}
+
+document.getElementById('adminTabAgenda').addEventListener('click', () => switchAdminTab('agenda'));
+document.getElementById('adminTabGestionale').addEventListener('click', () => switchAdminTab('gestionale'));
+
+document.getElementById('gestionalePrevMonth').addEventListener('click', () => {
+  gestionaleCursor.setMonth(gestionaleCursor.getMonth() - 1);
+  renderGestionale();
+});
+document.getElementById('gestionaleNextMonth').addEventListener('click', () => {
+  gestionaleCursor.setMonth(gestionaleCursor.getMonth() + 1);
+  renderGestionale();
+});
+
+async function renderGestionale() {
+  if (!currentIsAdmin || !customerToken()) return;
+
+  const year = gestionaleCursor.getFullYear();
+  const month = gestionaleCursor.getMonth();
+  const start = localISO(new Date(year, month, 1));
+  const end = localISO(new Date(year, month + 1, 0));
+
+  document.getElementById('gestionalePeriodTitle').textContent = `${monthNames[month]} ${year}`;
+
+  const { data, error } = await supabaseClient.rpc('get_bookings_range_for_admin', {
+    p_access_token: customerToken(),
+    p_start_date: start,
+    p_end_date: end
+  });
+
+  if (error) {
+    console.error(error);
+    return;
+  }
+
+  const bookings = data || [];
+  const income = bookings.reduce((sum, b) => sum + Number(b.price), 0);
+  const count = bookings.length;
+  const avg = count ? income / count : 0;
+
+  document.getElementById('gestIncome').textContent = `${income} €`;
+  document.getElementById('gestBookingsCount').textContent = count;
+  document.getElementById('gestAvgTicket').textContent =
+    `${Number.isInteger(avg) ? avg : avg.toFixed(2)} €`;
+
+  const byService = {};
+  bookings.forEach(b => {
+    if (!byService[b.service]) byService[b.service] = { count: 0, revenue: 0 };
+    byService[b.service].count += 1;
+    byService[b.service].revenue += Number(b.price);
+  });
+
+  const services = Object.entries(byService)
+    .map(([name, stats]) => ({ name, ...stats }))
+    .sort((a, b) => b.revenue - a.revenue);
+
+  const list = document.getElementById('gestServicesList');
+  list.innerHTML = '';
+
+  if (!services.length) {
+    list.innerHTML = '<div class="empty-state">Nessuna prenotazione in questo periodo.</div>';
+    return;
+  }
+
+  const maxRevenue = services[0].revenue;
+
+  services.forEach(service => {
+    const row = document.createElement('div');
+    row.className = 'gest-service-row';
+    const pct = maxRevenue ? Math.round((service.revenue / maxRevenue) * 100) : 0;
+    row.innerHTML = `
+      <div class="gest-service-row-top">
+        <span class="gest-service-name">${service.name}</span>
+        <span class="gest-service-meta">${service.revenue} € <small>· ${service.count} ${service.count === 1 ? 'prenotazione' : 'prenotazioni'}</small></span>
+      </div>
+      <div class="gest-service-bar"><div class="gest-service-bar-fill" style="width:${pct}%"></div></div>
+    `;
+    list.appendChild(row);
+  });
+}
+
+async function renderGestionaleClients() {
+  if (!currentIsAdmin || !customerToken()) return;
+
+  const { data, error } = await supabaseClient.rpc('get_gestionale_clients', {
+    p_access_token: customerToken()
+  });
+
+  if (error) {
+    console.error(error);
+    return;
+  }
+
+  gestionaleClientsCache = (data || []).map(row => ({
+    id: row.customer_id,
+    name: `${row.first_name} ${row.last_name}`,
+    phone: row.phone,
+    visits: Number(row.total_visits),
+    spent: Number(row.total_spent),
+    lastVisit: row.last_visit,
+    favoriteService: row.favorite_service
+  }));
+
+  document.getElementById('gestClientsTotal').textContent =
+    `${gestionaleClientsCache.length} client${gestionaleClientsCache.length === 1 ? 'e' : 'i'}`;
+
+  paintGestionaleClients(gestionaleClientsCache);
+}
+
+function paintGestionaleClients(clients) {
+  const list = document.getElementById('gestClientsList');
+  list.innerHTML = '';
+
+  if (!clients.length) {
+    list.innerHTML = '<div class="empty-state">Nessun cliente trovato.</div>';
+    return;
+  }
+
+  clients.forEach((client, index) => {
+    const initials = client.name
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map(part => part[0].toUpperCase())
+      .join('');
+
+    const isTop = index < 3 && client.visits > 0;
+    const cleanPhone = client.phone && !client.phone.startsWith('MANUAL-') ? client.phone : '';
+
+    const row = document.createElement('article');
+    row.className = `gest-client-row${isTop ? ' top-client' : ''}`;
+    row.innerHTML = `
+      <div class="gest-client-avatar">${initials || '—'}</div>
+      <div class="gest-client-info">
+        <strong>${client.name}</strong>
+        ${cleanPhone ? `<a href="tel:${cleanPhone}">${cleanPhone}</a>` : '<span>Senza telefono</span>'}
+        ${client.favoriteService ? `<span>Preferito: ${client.favoriteService}</span>` : ''}
+        ${isTop ? '<span class="gest-client-badge">Cliente top</span>' : ''}
+      </div>
+      <div class="gest-client-stats">
+        <strong>${client.spent} €</strong>
+        <span>${client.visits} ${client.visits === 1 ? 'visita' : 'visite'}</span>
+        ${client.lastVisit ? `<span>Ultima: ${formatShortDate(client.lastVisit)}</span>` : ''}
+      </div>
+    `;
+    list.appendChild(row);
+  });
+}
+
+document.getElementById('gestClientSearch').addEventListener('input', event => {
+  if (!gestionaleClientsCache) return;
+  const term = event.target.value.trim().toLowerCase();
+  const phoneTerm = normalizePhone(event.target.value);
+
+  const filtered = term === ''
+    ? gestionaleClientsCache
+    : gestionaleClientsCache.filter(client =>
+        client.name.toLowerCase().includes(term) ||
+        (phoneTerm && client.phone && client.phone.includes(phoneTerm))
+      );
+
+  paintGestionaleClients(filtered);
+});
+// ================== FINE GESTIONALE ==================
+
 document.getElementById('clearBookings').textContent = 'Esci';
 document.getElementById('clearBookings').addEventListener('click', () => {
   localStorage.removeItem('tranneIlLunediCustomer');

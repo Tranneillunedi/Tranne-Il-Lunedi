@@ -176,6 +176,17 @@
           <button class="secondary-btn" id="clearBookings">Esci</button>
         </div>
 
+        <div class="admin-tabs" role="tablist">
+          <button type="button" class="admin-tab active" id="adminTabAgenda" data-admin-tab="agenda" role="tab" aria-selected="true">
+            <span class="admin-tab-icon">▣</span>Agenda
+          </button>
+          <button type="button" class="admin-tab" id="adminTabGestionale" data-admin-tab="gestionale" role="tab" aria-selected="false">
+            <span class="admin-tab-icon">◧</span>Gestionale
+          </button>
+        </div>
+
+        <div class="admin-subview" id="adminAgendaView">
+
         <div class="admin-stats">
           <article>
             <span>Prenotazioni del giorno</span>
@@ -293,6 +304,58 @@
         <div class="booking-list-wrap">
           <p class="eyebrow">PRENOTAZIONI</p>
           <div id="bookingList" class="booking-list"></div>
+        </div>
+
+        </div>
+
+        <div class="admin-subview hidden" id="adminGestionaleView">
+
+          <div class="gestionale-period">
+            <div>
+              <p class="eyebrow">PERIODO</p>
+              <h3 id="gestionalePeriodTitle">—</h3>
+            </div>
+            <div class="gestionale-period-nav">
+              <button type="button" class="calendar-nav" id="gestionalePrevMonth" aria-label="Mese precedente">‹</button>
+              <button type="button" class="calendar-nav" id="gestionaleNextMonth" aria-label="Mese successivo">›</button>
+            </div>
+          </div>
+
+          <div class="admin-stats gestionale-stats">
+            <article>
+              <span>Incassi del mese</span>
+              <strong id="gestIncome">0 €</strong>
+            </article>
+            <article>
+              <span>Prenotazioni del mese</span>
+              <strong id="gestBookingsCount">0</strong>
+            </article>
+            <article>
+              <span>Scontrino medio</span>
+              <strong id="gestAvgTicket">0 €</strong>
+            </article>
+          </div>
+
+          <div class="management-card gestionale-card">
+            <p class="eyebrow">SERVIZI PIÙ RICHIESTI</p>
+            <h3>Andamento del mese</h3>
+            <div id="gestServicesList" class="gest-services-list"></div>
+          </div>
+
+          <div class="management-card gestionale-card">
+            <div class="gestionale-clients-heading">
+              <div>
+                <p class="eyebrow">RUBRICA CLIENTI</p>
+                <h3>Riepilogo di tutti i clienti</h3>
+              </div>
+              <span id="gestClientsTotal" class="gest-clients-total">0 clienti</span>
+            </div>
+            <div class="form-block">
+              <input id="gestClientSearch" type="search" placeholder="Cerca per nome o telefono..." />
+            </div>
+            <div id="gestClientsList" class="gest-clients-list"></div>
+          </div>
+
         </div>
       </section>
 
