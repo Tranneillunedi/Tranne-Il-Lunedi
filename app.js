@@ -27,6 +27,7 @@ const monthNames = [
 ];
 
 let availability = {};
+let cutUnavailable = {};
 let remoteSlotBlocks = {};
 let currentIsAdmin = false;
 
@@ -111,6 +112,7 @@ document.querySelectorAll('[data-go]').forEach(button => {
 document.querySelectorAll('.service-card').forEach(card => {
   card.addEventListener('click', () => {
     serviceSelect.value = `${card.dataset.service}|${card.dataset.price}`;
+    refreshServiceSlots();
     showPage('booking');
   });
 });
@@ -145,6 +147,42 @@ function isPastBookingSlot(date, time) {
   return slotMinutes < currentMinutes;
 }
 
+// V34 — Servizi che subiscono il vincolo del Completo dell'orario precedente.
+const CUT_SERVICES = ['Completo', 'Taglio', 'Taglio bambino (0-10 anni)'];
+
+function isCutService(name) {
+  return CUT_SERVICES.includes(String(name || '').split('|')[0]);
+}
+
+async function loadCutAvailability(date, excludeBookingId = null) {
+  const result = {};
+  if (!date) return result;
+  const { data, error } = await supabaseClient.rpc('get_day_cut_availability', {
+    p_booking_date: date,
+    p_exclude_booking: excludeBookingId
+  });
+  if (error) {
+    console.error(error);
+    return result;
+  }
+  (data || []).forEach(row => {
+    result[String(row.slot_time).slice(0, 5)] = Boolean(row.cut_unavailable);
+  });
+  return result;
+}
+
+function refreshServiceSlots() {
+  makeSlots();
+  const chosen = timeInput.value;
+  if (!chosen) return;
+  const button = slotsContainer.querySelector(`.slot[data-value="${chosen}"]`);
+  if (button && !button.disabled) {
+    button.classList.add('selected');
+  } else {
+    timeInput.value = '';
+  }
+}
+
 function makeSlots() {
   slotsContainer.innerHTML = '';
   for (let hour = 9; hour < 20; hour++) {
@@ -163,6 +201,10 @@ function makeSlots() {
       } else if ((availability[value] || 0) >= 2) {
         button.disabled = true;
         button.classList.add('unavailable');
+      } else if (isCutService(serviceSelect.value) && cutUnavailable[value]) {
+        button.disabled = true;
+        button.classList.add('unavailable');
+        button.title = 'Non disponibile per questo servizio';
       }
 
       button.addEventListener('click', () => {
@@ -177,6 +219,7 @@ function makeSlots() {
 
 async function loadAvailability(date) {
   availability = {};
+  cutUnavailable = {};
   if (!date) {
     makeSlots();
     return;
@@ -197,10 +240,12 @@ async function loadAvailability(date) {
     availability[String(row.booking_time).slice(0, 5)] = Number(row.occupied);
   });
   await loadSlotBlocks(date);
+  cutUnavailable = await loadCutAvailability(date);
   makeSlots();
 }
 
 makeSlots();
+serviceSelect.addEventListener('change', refreshServiceSlots);
 
 function createCalendar(config) {
   const grid = document.getElementById(config.gridId);
@@ -1036,6 +1081,9 @@ async function openChangeTimeModal(booking) {
   (data || []).forEach(row => {
     counts[String(row.booking_time).slice(0,5)] = Number(row.occupied);
   });
+  const cutBlocked = isCutService(booking.service)
+    ? await loadCutAvailability(booking.date, booking.id)
+    : {};
 
   for (let hour = 9; hour < 20; hour++) {
     ['00', '30'].forEach(minutes => {
@@ -1055,6 +1103,10 @@ async function openChangeTimeModal(booking) {
       } else if (adjustedCount >= 2) {
         button.disabled = true;
         button.classList.add('unavailable');
+      } else if (value !== booking.time && cutBlocked[value]) {
+        button.disabled = true;
+        button.classList.add('unavailable');
+        button.title = 'Non disponibile per questo servizio';
       }
 
       if (value === booking.time) {
