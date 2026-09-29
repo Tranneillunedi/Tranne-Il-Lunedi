@@ -1371,7 +1371,38 @@ document.getElementById('saveTimeBlockBtn')?.addEventListener('click', async () 
 
 fillBlockTimeSelects();
 
-// Sezione "Fasce bloccate": elenco, modifica, elimina e sblocca tutte.
+// Sezione "Fasce bloccate": fasce orarie + singole caselle. Elenco, modifica, elimina e sblocca tutte.
+const SLOT_BLOCK_DAYS_AHEAD = 90;
+
+async function fetchAllSlotBlocks() {
+  const dates = [];
+  const base = new Date();
+  for (let i = 0; i < SLOT_BLOCK_DAYS_AHEAD; i++) {
+    const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i);
+    dates.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+  }
+  const results = await Promise.all(dates.map(async date => {
+    const { data, error } = await supabaseClient.rpc('get_day_slot_blocks', { p_booking_date: date });
+    if (error) return [];
+    return (data || []).map(row => ({
+      date,
+      time: String(row.block_time).slice(0, 5),
+      slot: Number(row.slot_index)
+    }));
+  }));
+  return results.flat();
+}
+
+async function setSlotBlock(date, time, slot, blocked) {
+  return supabaseClient.rpc('set_admin_slot_block', {
+    p_access_token: customerToken(),
+    p_booking_date: date,
+    p_booking_time: time,
+    p_slot_index: slot,
+    p_blocked: blocked
+  });
+}
+
 async function renderBlockedSlotsManager() {
   const list = document.getElementById('blockedSlotsList');
   const unlockAllBtn = document.getElementById('unlockAllBlocksBtn');
@@ -1380,22 +1411,35 @@ async function renderBlockedSlotsManager() {
   const { data, error } = await supabaseClient.rpc('get_admin_closures_and_blocks', {
     p_access_token: customerToken()
   });
-  if (error) { console.error(error); return; }
+
+  if (error) {
+    console.error(error);
+    list.innerHTML = `<div class="empty-state">Errore nel caricamento: ${error.message || 'riprova'}</div>`;
+    return;
+  }
 
   const blocks = (data || [])
     .filter(item => item.item_type === 'block')
     .sort((x, y) => `${x.start_date} ${x.start_time}`.localeCompare(`${y.start_date} ${y.start_time}`));
+
+  // Le caselle singole si caricano dopo, senza bloccare la lista delle fasce.
+  let slotBlocks = [];
+  const renderToken = (window.__blockedRenderToken = (window.__blockedRenderToken || 0) + 1);
 
   list.innerHTML = '';
   unlockAllBtn?.classList.toggle('hidden', !blocks.length);
 
   if (!blocks.length) {
     list.innerHTML = '<div class="empty-state">Nessuna fascia bloccata.</div>';
-    return;
   }
 
   const timeOptions = allHalfHourTimes();
+  const refresh = async () => {
+    await loadSlotBlocks(adminSelectedDate);
+    await renderAdmin();
+  };
 
+  // ---- Fasce orarie ----
   blocks.forEach(item => {
     const startTime = String(item.start_time).slice(0, 5);
     const endTime = String(item.end_time).slice(0, 5);
@@ -1420,8 +1464,7 @@ async function renderBlockedSlotsManager() {
       });
       if (delError) return alert(delError.message);
       notify('Fascia sbloccata.', 'success');
-      await renderClosuresAndBlocks();
-      await renderBlockedSlotsManager();
+      await refresh();
     });
 
     element.querySelector('.management-edit').addEventListener('click', () => {
@@ -1455,7 +1498,6 @@ async function renderBlockedSlotsManager() {
         if (!date) return alert('Seleziona la data.');
         if (end <= start) return alert('L’orario finale deve essere successivo a quello iniziale.');
 
-        // Prima crea la nuova fascia, poi elimina la vecchia (così non si perde nulla se fallisce).
         const { error: createError } = await supabaseClient.rpc('create_admin_time_block', {
           p_access_token: customerToken(),
           p_block_date: date,
@@ -1472,8 +1514,82 @@ async function renderBlockedSlotsManager() {
         if (delError) return alert(delError.message);
 
         notify('Fascia modificata.', 'success');
-        await renderClosuresAndBlocks();
-        await renderBlockedSlotsManager();
+        await refresh();
+      });
+    });
+
+    list.appendChild(element);
+  });
+
+  // ---- Singole caselle bloccate dall'agenda (caricate dopo) ----
+  try { slotBlocks = await fetchAllSlotBlocks(); } catch (e) { slotBlocks = []; }
+  if (renderToken !== window.__blockedRenderToken) return;
+  slotBlocks.sort((x, y) => `${x.date} ${x.time} ${x.slot}`.localeCompare(`${y.date} ${y.time} ${y.slot}`));
+  if (slotBlocks.length) {
+    unlockAllBtn?.classList.remove('hidden');
+    list.querySelector('.empty-state')?.remove();
+  }
+  slotBlocks.forEach(item => {
+    const element = document.createElement('div');
+    element.className = 'management-item';
+    element.innerHTML = `
+      <div>
+        <strong>${item.date} · ${item.time}</strong>
+        <span>Casella ${item.slot + 1} bloccata</span>
+      </div>
+      <div class="blocked-actions">
+        <button class="management-edit" type="button" aria-label="Modifica">✎</button>
+        <button class="management-delete" type="button" aria-label="Sblocca">×</button>
+      </div>
+    `;
+
+    element.querySelector('.management-delete').addEventListener('click', async () => {
+      if (!confirm('Sbloccare questa casella?')) return;
+      const { error: err } = await setSlotBlock(item.date, item.time, item.slot, false);
+      if (err) return alert(err.message);
+      notify('Casella sbloccata.', 'success');
+      await refresh();
+    });
+
+    element.querySelector('.management-edit').addEventListener('click', () => {
+      const existing = element.querySelector('.blocked-edit-form');
+      if (existing) { existing.remove(); return; }
+
+      const form = document.createElement('div');
+      form.className = 'blocked-edit-form';
+      const opts = sel => timeOptions.map(t => `<option value="${t}" ${t === sel ? 'selected' : ''}>${t}</option>`).join('');
+      form.innerHTML = `
+        <input type="date" class="edit-slot-date" value="${item.date}" />
+        <div class="blocked-edit-row">
+          <select class="edit-slot-time">${opts(item.time)}</select>
+          <select class="edit-slot-index">
+            <option value="0" ${item.slot === 0 ? 'selected' : ''}>Casella 1</option>
+            <option value="1" ${item.slot === 1 ? 'selected' : ''}>Casella 2</option>
+          </select>
+        </div>
+        <div class="blocked-edit-buttons">
+          <button type="button" class="secondary-btn edit-cancel">Annulla</button>
+          <button type="button" class="primary-btn edit-save">Salva</button>
+        </div>
+      `;
+      element.appendChild(form);
+
+      form.querySelector('.edit-cancel').addEventListener('click', () => form.remove());
+      form.querySelector('.edit-save').addEventListener('click', async () => {
+        const date = form.querySelector('.edit-slot-date').value;
+        const time = form.querySelector('.edit-slot-time').value;
+        const slot = Number(form.querySelector('.edit-slot-index').value);
+        if (!date) return alert('Seleziona la data.');
+
+        if (date === item.date && time === item.time && slot === item.slot) { form.remove(); return; }
+
+        const { error: newErr } = await setSlotBlock(date, time, slot, true);
+        if (newErr) return alert(newErr.message);
+        const { error: oldErr } = await setSlotBlock(item.date, item.time, item.slot, false);
+        if (oldErr) return alert(oldErr.message);
+
+        notify('Casella modificata.', 'success');
+        await refresh();
       });
     });
 
@@ -1483,11 +1599,12 @@ async function renderBlockedSlotsManager() {
 
 document.getElementById('unlockAllBlocksBtn')?.addEventListener('click', async () => {
   if (!currentIsAdmin || !customerToken()) return;
-  if (!confirm('Sbloccare TUTTE le fasce bloccate?')) return;
+  if (!confirm('Sbloccare TUTTE le fasce e le caselle bloccate?')) return;
 
-  const { data, error } = await supabaseClient.rpc('get_admin_closures_and_blocks', {
-    p_access_token: customerToken()
-  });
+  const [{ data, error }, slotBlocks] = await Promise.all([
+    supabaseClient.rpc('get_admin_closures_and_blocks', { p_access_token: customerToken() }),
+    fetchAllSlotBlocks()
+  ]);
   if (error) return alert(error.message);
 
   const blocks = (data || []).filter(item => item.item_type === 'block');
@@ -1498,10 +1615,14 @@ document.getElementById('unlockAllBlocksBtn')?.addEventListener('click', async (
     });
     if (delError) { alert(delError.message); break; }
   }
+  for (const item of slotBlocks) {
+    const { error: err } = await setSlotBlock(item.date, item.time, item.slot, false);
+    if (err) { alert(err.message); break; }
+  }
 
-  notify('Tutte le fasce sono state sbloccate.', 'success');
-  await renderClosuresAndBlocks();
-  await renderBlockedSlotsManager();
+  notify('Tutto sbloccato.', 'success');
+  await loadSlotBlocks(adminSelectedDate);
+  await renderAdmin();
 });
 
 const renderAdminOriginal = renderAdmin;
