@@ -1242,9 +1242,12 @@ loadAvailability = async function(date) {
 async function renderClosuresAndBlocks() {
   if (!currentIsAdmin || !customerToken()) return;
 
-  const { data, error } = await supabaseClient.rpc('get_admin_closures_and_blocks', {
-    p_access_token: customerToken()
-  });
+  const { data, error } = await supabaseClient.rpc(
+    'get_admin_closures_and_blocks',
+    {
+      p_access_token: customerToken()
+    }
+  );
 
   if (error) {
     console.error(error);
@@ -1259,70 +1262,202 @@ async function renderClosuresAndBlocks() {
   closureList.innerHTML = '';
   timeBlockList.innerHTML = '';
 
-  const closures = (data || []).filter(item => item.item_type === 'closure');
-  const blocks = (data || []).filter(item => item.item_type === 'block');
+  const closures = (data || []).filter(
+    item => item.item_type === 'closure'
+  );
+
+  const blocks = (data || []).filter(
+    item => item.item_type === 'block'
+  );
+
+  /* =========================
+     CHIUSURE
+  ========================= */
 
   if (!closures.length) {
-    closureList.innerHTML = '<div class="empty-state">Nessuna chiusura programmata.</div>';
+    closureList.innerHTML =
+      '<div class="empty-state">Nessuna chiusura programmata.</div>';
   }
 
   closures.forEach(item => {
     const element = document.createElement('div');
+
     element.className = 'management-item';
+
     element.innerHTML = `
       <div>
         <strong>${item.start_date} → ${item.end_date}</strong>
         <span>${item.reason || 'Chiusura'}</span>
       </div>
-      <button class="management-delete" type="button" aria-label="Elimina">×</button>
+
+      <button
+        class="management-delete"
+        type="button"
+        aria-label="Elimina"
+      >
+        ×
+      </button>
     `;
 
-    element.querySelector('button').addEventListener('click', async () => {
-      if (!confirm('Eliminare questa chiusura?')) return;
+    element.querySelector('button').addEventListener(
+      'click',
+      async () => {
 
-      const { error } = await supabaseClient.rpc('delete_admin_closure', {
-        p_access_token: customerToken(),
-        p_id: item.item_id
-      });
+        if (!confirm('Eliminare questa chiusura?')) return;
 
-      if (error) return alert(error.message);
-      await renderClosuresAndBlocks();
-    });
+        const { error } =
+          await supabaseClient.rpc(
+            'delete_admin_closure',
+            {
+              p_access_token: customerToken(),
+              p_id: item.item_id
+            }
+          );
+
+        if (error) {
+          alert(error.message);
+          return;
+        }
+
+        await renderClosuresAndBlocks();
+      }
+    );
 
     closureList.appendChild(element);
   });
 
+  /* =========================
+     FASCE BLOCCATE
+  ========================= */
+
   if (!blocks.length) {
-    timeBlockList.innerHTML = '<div class="empty-state">Nessuna fascia bloccata.</div>';
+
+    timeBlockList.innerHTML =
+      '<div class="empty-state">Nessuna fascia bloccata.</div>';
+
+    return;
   }
 
+  const heading = document.createElement('p');
+
+  heading.className =
+    'eyebrow management-list-heading';
+
+  heading.textContent =
+    'FASCE BLOCCATE';
+
+  timeBlockList.appendChild(heading);
+
   blocks.forEach(item => {
-    const element = document.createElement('div');
-    element.className = 'management-item';
+
+    const startTime =
+      String(item.start_time).slice(0, 5);
+
+    const endTime =
+      String(item.end_time).slice(0, 5);
+
+    const element =
+      document.createElement('div');
+
+    element.className =
+      'management-item';
+
     element.innerHTML = `
       <div>
-        <strong>${item.start_date} · ${String(item.start_time).slice(0, 5)}–${String(item.end_time).slice(0, 5)}</strong>
-        <span>${item.reason || 'Fascia bloccata'}</span>
+        <strong>
+          ${item.start_date} ·
+          ${startTime}–${endTime}
+        </strong>
+
+        <span>
+          ${item.reason || 'Fascia bloccata'}
+        </span>
       </div>
-      <button class="management-delete" type="button" aria-label="Elimina">×</button>
+
+      <button
+        class="management-delete management-unblock"
+        type="button"
+        aria-label="Sblocca fascia"
+      >
+        SBLOCCA
+      </button>
     `;
 
-    element.querySelector('button').addEventListener('click', async () => {
-      if (!confirm('Eliminare questo blocco orario?')) return;
+    const button =
+      element.querySelector('button');
 
-      const { error } = await supabaseClient.rpc('delete_admin_time_block', {
-        p_access_token: customerToken(),
-        p_id: item.item_id
-      });
+    button.addEventListener(
+      'click',
+      async () => {
 
-      if (error) return alert(error.message);
-      await renderClosuresAndBlocks();
-    });
+        const conferma = confirm(
+          `Sbloccare la fascia ${startTime}–${endTime} del ${item.start_date}?`
+        );
+
+        if (!conferma) return;
+
+        button.disabled = true;
+        button.textContent = 'SBLOCCO...';
+
+        const { error } =
+          await supabaseClient.rpc(
+            'delete_admin_time_block',
+            {
+              p_access_token: customerToken(),
+              p_id: item.item_id
+            }
+          );
+
+        if (error) {
+
+          console.error(error);
+
+          button.disabled = false;
+          button.textContent = 'SBLOCCA';
+
+          alert(
+            'Errore durante lo sblocco: ' +
+            error.message
+          );
+
+          return;
+        }
+
+        /*
+         * Se il giorno sbloccato è quello
+         * attualmente visualizzato nella prenotazione,
+         * aggiorna immediatamente gli orari.
+         */
+
+        const bookingDate =
+          document.getElementById('date');
+
+        if (
+          bookingDate &&
+          bookingDate.value === item.start_date
+        ) {
+          await loadAvailability(
+            item.start_date
+          );
+        }
+
+        notify(
+          'Fascia sbloccata. Gli orari sono di nuovo disponibili.',
+          'success'
+        );
+
+        /*
+         * Ricarica l'elenco delle fasce bloccate.
+         * Quella appena sbloccata sparirà.
+         */
+
+        await renderClosuresAndBlocks();
+      }
+    );
 
     timeBlockList.appendChild(element);
   });
 }
-
 document.getElementById('saveClosureBtn')?.addEventListener('click', async () => {
   const start = document.getElementById('closureStart').value;
   const end = document.getElementById('closureEnd').value || start;
