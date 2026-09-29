@@ -1440,3 +1440,26 @@ body.tutorial-open {
   margin-top: 4px;
   opacity: .65;
 }
+
+/* Sezione fasce bloccate */
+.blocked-slots-card { margin-top: 16px; }
+.blocked-slots-card #unlockAllBlocksBtn { margin-bottom: 4px; }
+.blocked-actions { display: flex; gap: 8px; }
+.management-edit {
+  width: 34px;
+  height: 34px;
+  color: var(--text, #fff);
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 10px;
+  background: rgba(255,255,255,.06);
+}
+.blocked-edit-form {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+  margin-top: 6px;
+}
+.blocked-edit-form input,
+.blocked-edit-form select { width: 100%; }
+.blocked-edit-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.blocked-edit-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
