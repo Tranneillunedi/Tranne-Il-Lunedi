@@ -38,6 +38,11 @@ function notify(message, type = '') {
   notify.timer = setTimeout(() => syncStatus.classList.add('hidden'), 3200);
 }
 
+// V34 — Errori di regola (Completo/casella piena): nessun popup, l'orario viene solo barrato.
+function isSlotRuleError(error) {
+  return /completo|orario non disponibile|casella|fascia|barba o aggiusti/i.test(String(error?.message || ''));
+}
+
 function localISO(date) {
   const copy = new Date(date);
   copy.setMinutes(copy.getMinutes() - copy.getTimezoneOffset());
@@ -401,6 +406,13 @@ form.addEventListener('submit', async event => {
 
   if (error) {
     console.error(error);
+    if (isSlotRuleError(error)) {
+      // Nessun errore a schermo: si aggiornano gli orari, quello non valido risulta barrato.
+      timeInput.value = '';
+      await loadAvailability(dateInput.value);
+      notify('Orario non disponibile: scegline un altro.', '');
+      return;
+    }
     alert(error.message || 'Non è stato possibile creare la prenotazione.');
     await loadAvailability(dateInput.value);
     return;
@@ -1162,6 +1174,12 @@ document.getElementById('confirmTimeChange').addEventListener('click', async () 
   });
 
   if (error) {
+    if (isSlotRuleError(error)) {
+      // Nessun errore a schermo: si riaprono gli orari aggiornati con quello non valido barrato.
+      notify('Orario non disponibile: scegline un altro.', '');
+      await openChangeTimeModal(bookingBeingChanged);
+      return;
+    }
     alert(error.message);
     return;
   }
