@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tranne-il-lunedi-v32-auto-update';
+const CACHE_NAME = 'tranne-il-lunedi-v34-regola-completo';
 const APP_FILES = [
   './',
   './index.html',
