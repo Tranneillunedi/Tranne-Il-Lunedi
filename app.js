@@ -204,7 +204,7 @@ function refreshServiceSlots() {
 function makeSlots() {
   slotsContainer.innerHTML = '';
   for (let hour = 9; hour < 20; hour++) {
-    ['00'].forEach(minutes => {
+    (hour === 19 ? ['00', '30'] : ['00']).forEach(minutes => {
       const value = `${String(hour).padStart(2, '0')}:${minutes}`;
       const button = document.createElement('button');
       button.type = 'button';
@@ -593,7 +593,7 @@ async function renderAdmin() {
   // mostrate singolarmente come promemoria, senza casella di prenotazione.
   const offGrid = bookings.filter(b => {
     const [h, m] = b.time.split(':').map(Number);
-    return m !== 0 || h < 9 || h >= 20;
+    return (m !== 0 && !(h === 19 && m === 30)) || h < 9 || h >= 20;
   });
 
   // Una riga per ogni orario fuori griglia, con solo il nome del cliente.
@@ -626,7 +626,7 @@ async function renderAdmin() {
   appendReminderRows(offGrid.filter(b => b.time < '09:00'));
 
   for (let hour = 9; hour < 20; hour++) {
-    ['00'].forEach(minutes => {
+    (hour === 19 ? ['00', '30'] : ['00']).forEach(minutes => {
       const time = `${String(hour).padStart(2, '0')}:${minutes}`;
       const row = document.createElement('div');
       row.className = 'agenda-row';
@@ -1150,7 +1150,7 @@ async function openChangeTimeModal(booking) {
   const cutBlocked = await loadCutAvailability(booking.date, booking.id);
 
   for (let hour = 9; hour < 20; hour++) {
-    ['00'].forEach(minutes => {
+    (hour === 19 ? ['00', '30'] : ['00']).forEach(minutes => {
       const value = `${String(hour).padStart(2, '0')}:${minutes}`;
       const count = counts[value] || 0;
 
@@ -1238,7 +1238,7 @@ let blockedTimesForSelectedDate = new Set();
 function allHalfHourTimes() {
   const values = [];
   for (let hour = 9; hour < 20; hour++) {
-    for (const minutes of ['00']) {
+    for (const minutes of (hour === 19 ? ['00', '30'] : ['00'])) {
       values.push(`${String(hour).padStart(2, '0')}:${minutes}`);
     }
   }
