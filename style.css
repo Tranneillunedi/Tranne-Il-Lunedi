@@ -1463,3 +1463,9 @@ body.tutorial-open {
 .blocked-edit-form select { width: 100%; }
 .blocked-edit-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .blocked-edit-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+/* Prenotazioni fuori dalla griglia oraria (sola lettura, solo nome) */
+.agenda-slot.agenda-reminder {
+  min-height: 0;
+  cursor: default;
+}
