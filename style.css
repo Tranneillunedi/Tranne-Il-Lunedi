@@ -1469,3 +1469,8 @@ body.tutorial-open {
   min-height: 0;
   cursor: default;
 }
+
+/* V35 — altra prenotazione stesso orario */
+.add-another-btn { width: 100%; margin: 14px 0 6px; }
+.add-same-time-btn { background: rgba(255,255,255,.06); }
+#addAnotherService option:disabled { color: #888; }
