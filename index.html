@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png" />
   <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png" />
-  <link rel="stylesheet" href="style.css?v=27" />
+  <link rel="stylesheet" href="style.css?v=35" />
   <!-- La coda OneSignal deve essere creata prima di caricare il Web SDK. -->
   <script src="onesignal.js?v=27"></script>
   <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
@@ -76,6 +76,15 @@
             <strong>3 €</strong>
           </article>
 
+          <article class="service-card" data-service="Shampoo e fonatura" data-price="10">
+            <span class="service-icon">🚿</span>
+            <div>
+              <h3>Shampoo e fonatura</h3>
+              <p>Lavaggio e asciugatura</p>
+            </div>
+            <strong>10 €</strong>
+          </article>
+
           <article class="service-card" data-service="Completo" data-price="22">
             <span class="service-icon">🔥</span>
             <div>
@@ -118,6 +127,7 @@
               <option value="Taglio|17">Taglio — 17 €</option>
               <option value="Taglio bambino (0-10 anni)|12">Taglio bambino (0-10 anni) — 12 €</option>
               <option value="Barba|5">Barba — 5 €</option><option value="Aggiusti vari|3">Aggiusti vari — 3 €</option>
+              <option value="Shampoo e fonatura|10">Shampoo e fonatura — 10 €</option>
               <option value="Completo|22">Completo — 22 €</option>
             </select>
           </div>
@@ -408,11 +418,27 @@
         </div>
       </div>
 
+      <div class="modal hidden" id="addAnotherModal" role="dialog" aria-modal="true" aria-labelledby="addAnotherTitle">
+        <div class="modal-card">
+          <button class="modal-close" id="closeAddAnother" aria-label="Chiudi">×</button>
+          <p class="eyebrow">ALTRA PRENOTAZIONE</p>
+          <h2 id="addAnotherTitle">Aggiungi un altro servizio</h2>
+          <p class="notice" id="addAnotherWhen"></p>
+          <div class="form-block">
+            <label for="addAnotherService">Servizio</label>
+            <select id="addAnotherService"></select>
+          </div>
+          <p class="notice hidden" id="addAnotherFull">Non ci sono più caselle libere a questo orario.</p>
+          <button class="primary-btn full" id="confirmAddAnother" type="button">Conferma prenotazione</button>
+        </div>
+      </div>
+
       <section class="panel hidden success-panel" id="success">
         <div class="success-icon">✓</div>
         <p class="eyebrow">PRENOTAZIONE REGISTRATA</p>
         <h2>Ti aspettiamo!</h2>
         <div id="summary" class="summary"></div>
+        <button class="secondary-btn add-another-btn hidden" id="successAddAnother" type="button">➕ Aggiungi un’altra prenotazione allo stesso orario</button>
         <p class="notice">Per modifiche o imprevisti gravi, contatta il salone con il maggior preavviso possibile.</p>
         <button class="primary-btn" data-go="home">Torna alla home</button>
       </section>
@@ -609,7 +635,7 @@
           <div class="form-block"><label for="manualLastName">Cognome</label><input id="manualLastName" required minlength="2" autocomplete="family-name"></div>
         </div>
         <div class="form-block"><label for="manualPhone">Telefono <small>(facoltativo)</small></label><input id="manualPhone" inputmode="tel" autocomplete="tel" placeholder="Es. 333 1234567"></div>
-        <div class="form-block"><label for="manualService">Servizio</label><select id="manualService" required><option value="Taglio">Taglio — 17 €</option><option value="Taglio bambino (0-10 anni)">Taglio bambino (0-10 anni) — 12 €</option><option value="Completo">Completo — 22 €</option><option value="Barba">Barba — 5 €</option><option value="Aggiusti vari">Aggiusti vari — 3 €</option></select></div>
+        <div class="form-block"><label for="manualService">Servizio</label><select id="manualService" required><option value="Taglio">Taglio — 17 €</option><option value="Taglio bambino (0-10 anni)">Taglio bambino (0-10 anni) — 12 €</option><option value="Completo">Completo — 22 €</option><option value="Barba">Barba — 5 €</option><option value="Aggiusti vari">Aggiusti vari — 3 €</option><option value="Shampoo e fonatura">Shampoo e fonatura — 10 €</option></select></div>
         <div class="form-grid">
           <div class="form-block"><label for="manualDate">Data</label><input id="manualDate" type="date" required></div>
           <div class="form-block"><label for="manualTime">Ora</label><select id="manualTime" required></select></div>
@@ -622,7 +648,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js"></script>
-  <script src="app.js?v=31"></script>
+  <script src="app.js?v=35"></script>
 
 </body>
 </html>
