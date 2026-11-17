@@ -29,6 +29,7 @@ const monthNames = [
 let availability = {};
 let cutUnavailable = {};
 let remoteSlotBlocks = {};
+let lastCreatedBooking = null;
 let currentIsAdmin = false;
 
 function notify(message, type = '') {
@@ -204,7 +205,7 @@ function refreshServiceSlots() {
 function makeSlots() {
   slotsContainer.innerHTML = '';
   for (let hour = 9; hour < 20; hour++) {
-    (hour === 19 ? ['00', '30'] : ['00']).forEach(minutes => {
+    ['00'].forEach(minutes => {
       const value = `${String(hour).padStart(2, '0')}:${minutes}`;
       const button = document.createElement('button');
       button.type = 'button';
@@ -434,6 +435,12 @@ form.addEventListener('submit', async event => {
     Telefono: ${customer.phone}
   `;
 
+  lastCreatedBooking = {
+    date: booking.booking_date,
+    time: String(booking.booking_time).slice(0, 5)
+  };
+  document.getElementById('successAddAnother').classList.remove('hidden');
+
   adminSelectedDate = booking.booking_date;
   adminCalendar.setSelected(booking.booking_date);
   form.reset();
@@ -593,7 +600,7 @@ async function renderAdmin() {
   // mostrate singolarmente come promemoria, senza casella di prenotazione.
   const offGrid = bookings.filter(b => {
     const [h, m] = b.time.split(':').map(Number);
-    return (m !== 0 && !(h === 19 && m === 30)) || h < 9 || h >= 20;
+    return m !== 0 || h < 9 || h >= 20;
   });
 
   // Una riga per ogni orario fuori griglia, con solo il nome del cliente.
@@ -626,7 +633,7 @@ async function renderAdmin() {
   appendReminderRows(offGrid.filter(b => b.time < '09:00'));
 
   for (let hour = 9; hour < 20; hour++) {
-    (hour === 19 ? ['00', '30'] : ['00']).forEach(minutes => {
+    ['00'].forEach(minutes => {
       const time = `${String(hour).padStart(2, '0')}:${minutes}`;
       const row = document.createElement('div');
       row.className = 'agenda-row';
@@ -1117,12 +1124,16 @@ async function renderAccount() {
         <p>${formatLongDate(booking.date)}</p>
         <div class="customer-booking-actions">
           <button class="change-time-btn" type="button">Cambia orario</button>
+          <button class="change-time-btn add-same-time-btn" type="button">➕ Altra prenotazione stesso orario</button>
         </div>
       </div>
     `;
 
     card.querySelector('.change-time-btn').addEventListener('click', () => {
       openChangeTimeModal(booking);
+    });
+    card.querySelector('.add-same-time-btn').addEventListener('click', () => {
+      openAddAnotherModal(booking.date, booking.time);
     });
 
     customerBookings.appendChild(card);
@@ -1150,7 +1161,7 @@ async function openChangeTimeModal(booking) {
   const cutBlocked = await loadCutAvailability(booking.date, booking.id);
 
   for (let hour = 9; hour < 20; hour++) {
-    (hour === 19 ? ['00', '30'] : ['00']).forEach(minutes => {
+    ['00'].forEach(minutes => {
       const value = `${String(hour).padStart(2, '0')}:${minutes}`;
       const count = counts[value] || 0;
 
@@ -1232,13 +1243,107 @@ document.getElementById('confirmTimeChange').addEventListener('click', async () 
 });
 
 
+// V35 — Aggiungi un'altra prenotazione allo stesso orario (es. padre + figlio).
+const ALL_SERVICES = [
+  ['Taglio', 17],
+  ['Taglio bambino (0-10 anni)', 12],
+  ['Barba', 5],
+  ['Aggiusti vari', 3],
+  ['Shampoo e fonatura', 10],
+  ['Completo', 22]
+];
+const addAnotherModal = document.getElementById('addAnotherModal');
+const addAnotherService = document.getElementById('addAnotherService');
+const addAnotherFull = document.getElementById('addAnotherFull');
+const confirmAddAnother = document.getElementById('confirmAddAnother');
+let addAnotherTarget = null;
+
+async function openAddAnotherModal(date, time) {
+  addAnotherTarget = { date, time };
+  document.getElementById('addAnotherWhen').textContent =
+    `${formatLongDate(date)} alle ${time} — stesso orario della tua prenotazione.`;
+  addAnotherService.innerHTML = '';
+  addAnotherFull.classList.add('hidden');
+  confirmAddAnother.disabled = false;
+
+  const { data, error } = await supabaseClient.rpc('get_day_availability', { p_booking_date: date });
+  if (error) {
+    alert(error.message || 'Impossibile verificare la disponibilità.');
+    return;
+  }
+  let occupied = 0;
+  (data || []).forEach(row => {
+    if (String(row.booking_time).slice(0, 5) === time) occupied = Number(row.occupied);
+  });
+  const blocks = await loadCutAvailability(date);
+  const rules = blocks[time];
+
+  let firstAvailable = null;
+  ALL_SERVICES.forEach(([name, price]) => {
+    const option = document.createElement('option');
+    option.value = name;
+    const blocked = isServiceBlockedAt(name, rules);
+    option.textContent = `${name} — ${price} €${blocked ? ' (non disponibile)' : ''}`;
+    option.disabled = blocked;
+    if (!blocked && firstAvailable === null) firstAvailable = name;
+    addAnotherService.appendChild(option);
+  });
+
+  if (occupied >= 2 || firstAvailable === null) {
+    addAnotherFull.classList.remove('hidden');
+    confirmAddAnother.disabled = true;
+  } else {
+    addAnotherService.value = firstAvailable;
+  }
+  addAnotherModal.classList.remove('hidden');
+}
+
+document.getElementById('closeAddAnother').addEventListener('click', () => {
+  addAnotherModal.classList.add('hidden');
+});
+addAnotherModal.addEventListener('click', event => {
+  if (event.target === addAnotherModal) addAnotherModal.classList.add('hidden');
+});
+document.getElementById('successAddAnother').addEventListener('click', () => {
+  if (lastCreatedBooking) openAddAnotherModal(lastCreatedBooking.date, lastCreatedBooking.time);
+});
+
+confirmAddAnother.addEventListener('click', async () => {
+  if (!addAnotherTarget || !addAnotherService.value) return;
+  confirmAddAnother.disabled = true;
+  const { error } = await supabaseClient.rpc('create_booking', {
+    p_access_token: customerToken(),
+    p_service: addAnotherService.value,
+    p_booking_date: addAnotherTarget.date,
+    p_booking_time: addAnotherTarget.time
+  });
+  if (error) {
+    console.error(error);
+    if (isSlotRuleError(error)) {
+      notify('Orario non più disponibile per questo servizio.', '');
+      await openAddAnotherModal(addAnotherTarget.date, addAnotherTarget.time);
+      return;
+    }
+    confirmAddAnother.disabled = false;
+    alert(error.message || 'Non è stato possibile creare la prenotazione.');
+    return;
+  }
+  addAnotherModal.classList.add('hidden');
+  notify('Seconda prenotazione aggiunta allo stesso orario.', 'success');
+  await renderAccount();
+  if (typeof showPage === 'function' && document.getElementById('success') && !document.getElementById('success').classList.contains('hidden')) {
+    document.getElementById('summary').insertAdjacentHTML('beforeend',
+      `<br><strong>+ ${addAnotherService.value}</strong> alle ${addAnotherTarget.time}`);
+  }
+});
+
 let closedForSelectedDate = false;
 let blockedTimesForSelectedDate = new Set();
 
 function allHalfHourTimes() {
   const values = [];
   for (let hour = 9; hour < 20; hour++) {
-    for (const minutes of (hour === 19 ? ['00', '30'] : ['00'])) {
+    for (const minutes of ['00']) {
       values.push(`${String(hour).padStart(2, '0')}:${minutes}`);
     }
   }
