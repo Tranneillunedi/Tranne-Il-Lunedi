@@ -162,6 +162,9 @@ function isCutService(name) {
 }
 
 async function loadCutAvailability(date, excludeBookingId = null) {
+  // V36 — Regola del Completo rimossa: nessun servizio viene più bloccato in base agli altri.
+  return {};
+  // eslint-disable-next-line no-unreachable
   const result = {};
   if (!date) return result;
   const { data, error } = await supabaseClient.rpc('get_day_cut_availability', {
@@ -205,7 +208,8 @@ function refreshServiceSlots() {
 function makeSlots() {
   slotsContainer.innerHTML = '';
   for (let hour = 9; hour < 20; hour++) {
-    ['00'].forEach(minutes => {
+    ['00', '30'].forEach(minutes => {
+      if (minutes === '30' && hour !== 19) return; // unica mezz'ora prenotabile: 19:30
       const value = `${String(hour).padStart(2, '0')}:${minutes}`;
       const button = document.createElement('button');
       button.type = 'button';
@@ -633,7 +637,8 @@ async function renderAdmin() {
   appendReminderRows(offGrid.filter(b => b.time < '09:00'));
 
   for (let hour = 9; hour < 20; hour++) {
-    ['00'].forEach(minutes => {
+    ['00', '30'].forEach(minutes => {
+      if (minutes === '30' && hour !== 19) return; // unica mezz'ora prenotabile: 19:30
       const time = `${String(hour).padStart(2, '0')}:${minutes}`;
       const row = document.createElement('div');
       row.className = 'agenda-row';
@@ -670,7 +675,7 @@ async function renderAdmin() {
 
       timeline.appendChild(row);
 
-      const nextTime = `${String(hour + 1).padStart(2, '0')}:00`;
+      const nextTime = (hour === 19 && minutes === '00') ? '19:30' : `${String(hour + 1).padStart(2, '0')}:00`;
       appendReminderRows(offGrid.filter(b => b.time > time && b.time < nextTime && b.time >= '09:00'));
     });
   }
@@ -1161,7 +1166,8 @@ async function openChangeTimeModal(booking) {
   const cutBlocked = await loadCutAvailability(booking.date, booking.id);
 
   for (let hour = 9; hour < 20; hour++) {
-    ['00'].forEach(minutes => {
+    ['00', '30'].forEach(minutes => {
+      if (minutes === '30' && hour !== 19) return; // unica mezz'ora prenotabile: 19:30
       const value = `${String(hour).padStart(2, '0')}:${minutes}`;
       const count = counts[value] || 0;
 
@@ -1343,7 +1349,8 @@ let blockedTimesForSelectedDate = new Set();
 function allHalfHourTimes() {
   const values = [];
   for (let hour = 9; hour < 20; hour++) {
-    for (const minutes of ['00']) {
+    for (const minutes of ['00', '30']) {
+      if (minutes === '30' && hour !== 19) continue;
       values.push(`${String(hour).padStart(2, '0')}:${minutes}`);
     }
   }
@@ -1360,6 +1367,7 @@ function fillBlockTimeSelects() {
     end.add(new Option(value, value));
   });
 
+  end.add(new Option('20:00', '20:00')); // per poter bloccare anche le 19:30
   start.value = '09:00';
   end.value = '10:00';
 }
