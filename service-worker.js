@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tranne-il-lunedi-v36-aperture-straordinarie';
+const CACHE_NAME = 'tranne-il-lunedi-v37-sblocco-giornate';
 const APP_FILES = [
   './',
   './index.html',
