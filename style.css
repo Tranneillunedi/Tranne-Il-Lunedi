@@ -1477,3 +1477,14 @@ body.tutorial-open {
 .special-openings-card { margin-top: 16px; }
 .special-openings-card .form-block { margin-bottom: 12px; }
 .special-openings-card .management-unblock { width: auto; padding: 0 12px; font-size: .72rem; }
+
+/* Domenica e lunedì nei calendari admin: chiusi (spenti) o aperti (evidenziati) */
+.calendar-day.closed-day:not(:disabled):not(.selected) {
+  color: #8a8a8a;
+  border-style: dashed;
+}
+.calendar-day.special-open:not(.selected) {
+  color: var(--orange);
+  border-color: rgba(240,138,60,.7);
+  background: rgba(212,107,44,.12);
+}
