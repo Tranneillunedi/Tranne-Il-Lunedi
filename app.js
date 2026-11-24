@@ -29,7 +29,6 @@ const monthNames = [
 let availability = {};
 let cutUnavailable = {};
 let remoteSlotBlocks = {};
-let lastCreatedBooking = null;
 let currentIsAdmin = false;
 
 function notify(message, type = '') {
@@ -162,9 +161,6 @@ function isCutService(name) {
 }
 
 async function loadCutAvailability(date, excludeBookingId = null) {
-  // V36 — Regola del Completo rimossa: nessun servizio viene più bloccato in base agli altri.
-  return {};
-  // eslint-disable-next-line no-unreachable
   const result = {};
   if (!date) return result;
   const { data, error } = await supabaseClient.rpc('get_day_cut_availability', {
@@ -208,9 +204,9 @@ function refreshServiceSlots() {
 function makeSlots() {
   slotsContainer.innerHTML = '';
   for (let hour = 9; hour < 20; hour++) {
-    ['00', '30'].forEach(minutes => {
-      if (minutes === '30' && hour !== 19) return; // unica mezz'ora prenotabile: 19:30
+    (hour === 19 ? ['00', '30'] : ['00']).forEach(minutes => {
       const value = `${String(hour).padStart(2, '0')}:${minutes}`;
+      if (isOutsideSpecialOpening(dateInput.value, value)) return;
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'slot';
@@ -270,6 +266,21 @@ async function loadAvailability(date) {
 makeSlots();
 serviceSelect.addEventListener('change', refreshServiceSlots);
 
+// V35 — Aperture straordinarie di domenica e lunedì (decise dall'admin).
+let specialOpenings = {};
+
+function isClosedWeekday(iso) {
+  const day = new Date(`${iso}T12:00:00`).getDay();
+  return day === 0 || day === 1;
+}
+
+function isOutsideSpecialOpening(iso, time) {
+  if (!iso || !isClosedWeekday(iso)) return false;
+  const opening = specialOpenings[iso];
+  if (!opening) return false;
+  return time < opening.start || time >= opening.end;
+}
+
 function createCalendar(config) {
   const grid = document.getElementById(config.gridId);
   const title = document.getElementById(config.titleId);
@@ -306,7 +317,7 @@ function createCalendar(config) {
       if (iso === todayISO) button.classList.add('today');
       if (iso === selected) button.classList.add('selected');
 
-      const closed = weekday === 0 || weekday === 1;
+      const closed = (weekday === 0 || weekday === 1) && !specialOpenings[iso];
       const past = config.disablePast && iso < todayISO;
       button.disabled = closed || past;
 
@@ -333,6 +344,9 @@ function createCalendar(config) {
   render();
 
   return {
+    refresh() {
+      render();
+    },
     setSelected(iso) {
       selected = iso;
       const d = new Date(`${iso}T12:00:00`);
@@ -438,12 +452,6 @@ form.addEventListener('submit', async event => {
     ${dateFormatted} alle ${String(booking.booking_time).slice(0, 5)}<br>
     Telefono: ${customer.phone}
   `;
-
-  lastCreatedBooking = {
-    date: booking.booking_date,
-    time: String(booking.booking_time).slice(0, 5)
-  };
-  document.getElementById('successAddAnother').classList.remove('hidden');
 
   adminSelectedDate = booking.booking_date;
   adminCalendar.setSelected(booking.booking_date);
@@ -604,7 +612,7 @@ async function renderAdmin() {
   // mostrate singolarmente come promemoria, senza casella di prenotazione.
   const offGrid = bookings.filter(b => {
     const [h, m] = b.time.split(':').map(Number);
-    return m !== 0 || h < 9 || h >= 20;
+    return (m !== 0 && !(h === 19 && m === 30)) || h < 9 || h >= 20;
   });
 
   // Una riga per ogni orario fuori griglia, con solo il nome del cliente.
@@ -637,9 +645,9 @@ async function renderAdmin() {
   appendReminderRows(offGrid.filter(b => b.time < '09:00'));
 
   for (let hour = 9; hour < 20; hour++) {
-    ['00', '30'].forEach(minutes => {
-      if (minutes === '30' && hour !== 19) return; // unica mezz'ora prenotabile: 19:30
+    (hour === 19 ? ['00', '30'] : ['00']).forEach(minutes => {
       const time = `${String(hour).padStart(2, '0')}:${minutes}`;
+      if (isOutsideSpecialOpening(adminSelectedDate, time)) return;
       const row = document.createElement('div');
       row.className = 'agenda-row';
 
@@ -675,7 +683,7 @@ async function renderAdmin() {
 
       timeline.appendChild(row);
 
-      const nextTime = (hour === 19 && minutes === '00') ? '19:30' : `${String(hour + 1).padStart(2, '0')}:00`;
+      const nextTime = `${String(hour + 1).padStart(2, '0')}:00`;
       appendReminderRows(offGrid.filter(b => b.time > time && b.time < nextTime && b.time >= '09:00'));
     });
   }
@@ -1129,16 +1137,12 @@ async function renderAccount() {
         <p>${formatLongDate(booking.date)}</p>
         <div class="customer-booking-actions">
           <button class="change-time-btn" type="button">Cambia orario</button>
-          <button class="change-time-btn add-same-time-btn" type="button">➕ Altra prenotazione stesso orario</button>
         </div>
       </div>
     `;
 
     card.querySelector('.change-time-btn').addEventListener('click', () => {
       openChangeTimeModal(booking);
-    });
-    card.querySelector('.add-same-time-btn').addEventListener('click', () => {
-      openAddAnotherModal(booking.date, booking.time);
     });
 
     customerBookings.appendChild(card);
@@ -1166,9 +1170,9 @@ async function openChangeTimeModal(booking) {
   const cutBlocked = await loadCutAvailability(booking.date, booking.id);
 
   for (let hour = 9; hour < 20; hour++) {
-    ['00', '30'].forEach(minutes => {
-      if (minutes === '30' && hour !== 19) return; // unica mezz'ora prenotabile: 19:30
+    (hour === 19 ? ['00', '30'] : ['00']).forEach(minutes => {
       const value = `${String(hour).padStart(2, '0')}:${minutes}`;
+      if (isOutsideSpecialOpening(booking.date, value)) return;
       const count = counts[value] || 0;
 
       const button = document.createElement('button');
@@ -1249,108 +1253,13 @@ document.getElementById('confirmTimeChange').addEventListener('click', async () 
 });
 
 
-// V35 — Aggiungi un'altra prenotazione allo stesso orario (es. padre + figlio).
-const ALL_SERVICES = [
-  ['Taglio', 17],
-  ['Taglio bambino (0-10 anni)', 12],
-  ['Barba', 5],
-  ['Aggiusti vari', 3],
-  ['Shampoo e fonatura', 10],
-  ['Completo', 22]
-];
-const addAnotherModal = document.getElementById('addAnotherModal');
-const addAnotherService = document.getElementById('addAnotherService');
-const addAnotherFull = document.getElementById('addAnotherFull');
-const confirmAddAnother = document.getElementById('confirmAddAnother');
-let addAnotherTarget = null;
-
-async function openAddAnotherModal(date, time) {
-  addAnotherTarget = { date, time };
-  document.getElementById('addAnotherWhen').textContent =
-    `${formatLongDate(date)} alle ${time} — stesso orario della tua prenotazione.`;
-  addAnotherService.innerHTML = '';
-  addAnotherFull.classList.add('hidden');
-  confirmAddAnother.disabled = false;
-
-  const { data, error } = await supabaseClient.rpc('get_day_availability', { p_booking_date: date });
-  if (error) {
-    alert(error.message || 'Impossibile verificare la disponibilità.');
-    return;
-  }
-  let occupied = 0;
-  (data || []).forEach(row => {
-    if (String(row.booking_time).slice(0, 5) === time) occupied = Number(row.occupied);
-  });
-  const blocks = await loadCutAvailability(date);
-  const rules = blocks[time];
-
-  let firstAvailable = null;
-  ALL_SERVICES.forEach(([name, price]) => {
-    const option = document.createElement('option');
-    option.value = name;
-    const blocked = isServiceBlockedAt(name, rules);
-    option.textContent = `${name} — ${price} €${blocked ? ' (non disponibile)' : ''}`;
-    option.disabled = blocked;
-    if (!blocked && firstAvailable === null) firstAvailable = name;
-    addAnotherService.appendChild(option);
-  });
-
-  if (occupied >= 2 || firstAvailable === null) {
-    addAnotherFull.classList.remove('hidden');
-    confirmAddAnother.disabled = true;
-  } else {
-    addAnotherService.value = firstAvailable;
-  }
-  addAnotherModal.classList.remove('hidden');
-}
-
-document.getElementById('closeAddAnother').addEventListener('click', () => {
-  addAnotherModal.classList.add('hidden');
-});
-addAnotherModal.addEventListener('click', event => {
-  if (event.target === addAnotherModal) addAnotherModal.classList.add('hidden');
-});
-document.getElementById('successAddAnother').addEventListener('click', () => {
-  if (lastCreatedBooking) openAddAnotherModal(lastCreatedBooking.date, lastCreatedBooking.time);
-});
-
-confirmAddAnother.addEventListener('click', async () => {
-  if (!addAnotherTarget || !addAnotherService.value) return;
-  confirmAddAnother.disabled = true;
-  const { error } = await supabaseClient.rpc('create_booking', {
-    p_access_token: customerToken(),
-    p_service: addAnotherService.value,
-    p_booking_date: addAnotherTarget.date,
-    p_booking_time: addAnotherTarget.time
-  });
-  if (error) {
-    console.error(error);
-    if (isSlotRuleError(error)) {
-      notify('Orario non più disponibile per questo servizio.', '');
-      await openAddAnotherModal(addAnotherTarget.date, addAnotherTarget.time);
-      return;
-    }
-    confirmAddAnother.disabled = false;
-    alert(error.message || 'Non è stato possibile creare la prenotazione.');
-    return;
-  }
-  addAnotherModal.classList.add('hidden');
-  notify('Seconda prenotazione aggiunta allo stesso orario.', 'success');
-  await renderAccount();
-  if (typeof showPage === 'function' && document.getElementById('success') && !document.getElementById('success').classList.contains('hidden')) {
-    document.getElementById('summary').insertAdjacentHTML('beforeend',
-      `<br><strong>+ ${addAnotherService.value}</strong> alle ${addAnotherTarget.time}`);
-  }
-});
-
 let closedForSelectedDate = false;
 let blockedTimesForSelectedDate = new Set();
 
 function allHalfHourTimes() {
   const values = [];
   for (let hour = 9; hour < 20; hour++) {
-    for (const minutes of ['00', '30']) {
-      if (minutes === '30' && hour !== 19) continue;
+    for (const minutes of (hour === 19 ? ['00', '30'] : ['00'])) {
       values.push(`${String(hour).padStart(2, '0')}:${minutes}`);
     }
   }
@@ -1367,7 +1276,6 @@ function fillBlockTimeSelects() {
     end.add(new Option(value, value));
   });
 
-  end.add(new Option('20:00', '20:00')); // per poter bloccare anche le 19:30
   start.value = '09:00';
   end.value = '10:00';
 }
@@ -1577,10 +1485,190 @@ document.getElementById('saveTimeBlockBtn')?.addEventListener('click', async () 
 
 fillBlockTimeSelects();
 
+// V34 — Numeri di telefono bloccati.
+async function renderBlockedPhones() {
+  const list = document.getElementById('blockedPhonesList');
+  if (!list || !currentIsAdmin || !customerToken()) return;
+
+  const { data, error } = await supabaseClient.rpc('get_admin_blocked_phones', {
+    p_access_token: customerToken()
+  });
+
+  if (error) {
+    console.error(error);
+    list.innerHTML = '<div class="empty-state">Esegui prima il file SQL V34 su Supabase.</div>';
+    return;
+  }
+
+  list.innerHTML = '';
+  if (!data?.length) {
+    list.innerHTML = '<div class="empty-state">Nessun numero bloccato.</div>';
+    return;
+  }
+
+  data.forEach(item => {
+    const element = document.createElement('div');
+    element.className = 'management-item';
+    const label = [item.customer_name, item.note].filter(Boolean).join(' · ');
+    element.innerHTML = `
+      <div>
+        <strong>${item.phone}</strong>
+        <span>${label || 'Numero bloccato'}</span>
+      </div>
+      <button class="management-delete management-unblock" type="button" aria-label="Sblocca numero">Sblocca</button>
+    `;
+
+    element.querySelector('button').addEventListener('click', async () => {
+      if (!confirm(`Sbloccare il numero ${item.phone}?`)) return;
+
+      const { error: deleteError } = await supabaseClient.rpc('delete_admin_blocked_phone', {
+        p_access_token: customerToken(),
+        p_phone: item.phone
+      });
+
+      if (deleteError) return alert(deleteError.message);
+      notify('Numero sbloccato.', 'success');
+      await renderBlockedPhones();
+    });
+
+    list.appendChild(element);
+  });
+}
+
+document.getElementById('saveBlockedPhoneBtn')?.addEventListener('click', async () => {
+  const phoneInput = document.getElementById('blockedPhoneInput');
+  const noteInput = document.getElementById('blockedPhoneNote');
+
+  if (normalizePhone(phoneInput.value).length < 8) {
+    return alert('Inserisci un numero di telefono valido.');
+  }
+
+  const { error } = await supabaseClient.rpc('add_admin_blocked_phone', {
+    p_access_token: customerToken(),
+    p_phone: phoneInput.value.trim(),
+    p_note: noteInput.value.trim()
+  });
+
+  if (error) return alert(error.message);
+
+  phoneInput.value = '';
+  noteInput.value = '';
+  notify('Numero bloccato: non potrà più prenotare.', 'success');
+  await renderBlockedPhones();
+});
+
+// V35 — Aperture straordinarie: caricamento, elenco e salvataggio.
+async function loadSpecialOpenings() {
+  const { data, error } = await supabaseClient.rpc('get_special_openings');
+  if (error) {
+    console.error(error);
+    return;
+  }
+
+  specialOpenings = {};
+  (data || []).forEach(row => {
+    specialOpenings[String(row.open_date)] = {
+      start: String(row.start_time).slice(0, 5),
+      end: String(row.end_time).slice(0, 5)
+    };
+  });
+
+  bookingCalendar.refresh();
+  adminCalendar.refresh();
+  renderSpecialOpenings();
+}
+
+function renderSpecialOpenings() {
+  const list = document.getElementById('specialOpeningsList');
+  if (!list) return;
+
+  list.innerHTML = '';
+  const dates = Object.keys(specialOpenings).sort();
+  if (!dates.length) {
+    list.innerHTML = '<div class="empty-state">Nessuna apertura straordinaria.</div>';
+    return;
+  }
+
+  dates.forEach(iso => {
+    const opening = specialOpenings[iso];
+    const element = document.createElement('div');
+    element.className = 'management-item';
+    element.innerHTML = `
+      <div>
+        <strong>${formatLongDate(iso)}</strong>
+        <span>Dalle ${opening.start} alle ${opening.end}</span>
+      </div>
+      <button class="management-delete management-unblock" type="button" aria-label="Chiudi giornata">Chiudi</button>
+    `;
+
+    element.querySelector('button').addEventListener('click', async () => {
+      if (!confirm('Chiudere di nuovo questa giornata? Le prenotazioni già fissate restano in agenda.')) return;
+
+      const { error } = await supabaseClient.rpc('delete_admin_special_opening', {
+        p_access_token: customerToken(),
+        p_open_date: iso
+      });
+
+      if (error) return alert(error.message);
+      notify('Giornata richiusa.', 'success');
+      await loadSpecialOpenings();
+    });
+
+    list.appendChild(element);
+  });
+}
+
+function fillSpecialOpeningSelects() {
+  const startSelect = document.getElementById('specialOpenStart');
+  const endSelect = document.getElementById('specialOpenEnd');
+  if (!startSelect || !endSelect) return;
+
+  const starts = [];
+  for (let hour = 9; hour < 20; hour++) {
+    starts.push(`${String(hour).padStart(2, '0')}:00`);
+    if (hour === 19) starts.push('19:30');
+  }
+  const ends = starts.slice(1).concat('20:00');
+
+  startSelect.innerHTML = starts.map(t => `<option value="${t}">${t}</option>`).join('');
+  endSelect.innerHTML = ends.map(t => `<option value="${t}">${t}</option>`).join('');
+  startSelect.value = '09:00';
+  endSelect.value = '13:00';
+}
+
+document.getElementById('saveSpecialOpeningBtn')?.addEventListener('click', async () => {
+  const date = document.getElementById('specialOpenDate').value;
+  const start = document.getElementById('specialOpenStart').value;
+  const end = document.getElementById('specialOpenEnd').value;
+
+  if (!date) return alert('Seleziona la data.');
+  if (!isClosedWeekday(date)) return alert('Puoi abilitare solo una domenica o un lunedì.');
+  if (date < localISO(new Date())) return alert('La data non può essere nel passato.');
+  if (end <= start) return alert('L’orario finale deve essere successivo a quello iniziale.');
+
+  const { error } = await supabaseClient.rpc('set_admin_special_opening', {
+    p_access_token: customerToken(),
+    p_open_date: date,
+    p_start_time: start,
+    p_end_time: end
+  });
+
+  if (error) return alert(error.message);
+
+  document.getElementById('specialOpenDate').value = '';
+  notify('Giornata abilitata.', 'success');
+  await loadSpecialOpenings();
+});
+
+fillSpecialOpeningSelects();
+loadSpecialOpenings();
+
 const renderAdminOriginal = renderAdmin;
 renderAdmin = async function() {
   await renderAdminOriginal();
   await renderClosuresAndBlocks();
+  await renderBlockedPhones();
+  renderSpecialOpenings();
 };
 
 let deferredPrompt;

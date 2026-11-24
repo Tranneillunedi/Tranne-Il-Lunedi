@@ -1,9 +1,9 @@
-const CACHE_NAME = 'tranne-il-lunedi-v35-shampoo-fonatura';
+const CACHE_NAME = 'tranne-il-lunedi-v36-aperture-straordinarie';
 const APP_FILES = [
   './',
   './index.html',
-  './style.css?v=35',
-  './app.js?v=35',
+  './style.css?v=32',
+  './app.js?v=32',
   './supabase-config.js',
   './onesignal.js?v=32',
   './manifest.json',
