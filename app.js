@@ -317,11 +317,36 @@ function createCalendar(config) {
       if (iso === todayISO) button.classList.add('today');
       if (iso === selected) button.classList.add('selected');
 
-      const closed = (weekday === 0 || weekday === 1) && !specialOpenings[iso];
-      const past = config.disablePast && iso < todayISO;
-      button.disabled = closed || past;
+      const closedWeekday = weekday === 0 || weekday === 1;
+      const hasOpening = Boolean(specialOpenings[iso]);
+      const closed = closedWeekday && !hasOpening;
+      const pastDay = iso < todayISO;
+      const past = config.disablePast && pastDay;
+
+      if (config.onlyClosedDays) {
+        // Calendario "aperture straordinarie": solo domeniche e lunedì futuri.
+        button.disabled = !closedWeekday || pastDay;
+      } else if (config.manageClosedDays) {
+        // Calendario principale admin: domenica e lunedì cliccabili per sbloccarli/bloccarli.
+        button.disabled = closedWeekday ? pastDay : past;
+      } else {
+        button.disabled = closed || past;
+      }
+
+      if (closedWeekday && (config.onlyClosedDays || config.manageClosedDays)) {
+        button.classList.add(hasOpening ? 'special-open' : 'closed-day');
+      }
 
       button.addEventListener('click', async () => {
+        if (config.manageClosedDays && closedWeekday) {
+          if (hasOpening) {
+            selected = iso;
+            render();
+            await config.onSelect(iso);
+          }
+          config.onClosedDayClick(iso);
+          return;
+        }
         selected = iso;
         render();
         await config.onSelect(iso);
@@ -345,6 +370,10 @@ function createCalendar(config) {
 
   return {
     refresh() {
+      render();
+    },
+    clearSelection() {
+      selected = '';
       render();
     },
     setSelected(iso) {
@@ -384,9 +413,29 @@ const adminCalendar = createCalendar({
   nextId: 'adminNextMonth',
   initialDate: adminSelectedDate,
   disablePast: false,
+  manageClosedDays: true,
+  onClosedDayClick: iso => openDayActionModal(iso),
   onSelect: async iso => {
     adminSelectedDate = iso;
     await renderAdmin();
+  }
+});
+
+// Calendario della scheda "Aperture straordinarie": solo domeniche e lunedì.
+const specialCalendar = createCalendar({
+  gridId: 'specialCalendarGrid',
+  titleId: 'specialCalendarTitle',
+  prevId: 'specialPrevMonth',
+  nextId: 'specialNextMonth',
+  disablePast: false,
+  onlyClosedDays: true,
+  onSelect: async iso => {
+    document.getElementById('specialOpenDate').value = iso;
+    const opening = specialOpenings[iso];
+    if (opening) {
+      document.getElementById('specialOpenStart').value = opening.start;
+      document.getElementById('specialOpenEnd').value = opening.end;
+    }
   }
 });
 
@@ -1575,6 +1624,7 @@ async function loadSpecialOpenings() {
 
   bookingCalendar.refresh();
   adminCalendar.refresh();
+  specialCalendar.refresh();
   renderSpecialOpenings();
 }
 
@@ -1656,9 +1706,118 @@ document.getElementById('saveSpecialOpeningBtn')?.addEventListener('click', asyn
   if (error) return alert(error.message);
 
   document.getElementById('specialOpenDate').value = '';
+  specialCalendar.clearSelection();
   notify('Giornata abilitata.', 'success');
   await loadSpecialOpenings();
 });
+
+// Finestra "Gestione giornata": si apre cliccando una domenica o un lunedì
+// nel calendario principale dell'agenda.
+const dayActionModal = document.getElementById('dayActionModal');
+let dayActionDate = '';
+
+function fillDayActionSelects() {
+  const startSelect = document.getElementById('dayActionStart');
+  const endSelect = document.getElementById('dayActionEnd');
+  if (!startSelect || !endSelect) return;
+
+  const starts = [];
+  for (let hour = 9; hour < 20; hour++) {
+    starts.push(`${String(hour).padStart(2, '0')}:00`);
+    if (hour === 19) starts.push('19:30');
+  }
+  const ends = starts.slice(1).concat('20:00');
+
+  startSelect.innerHTML = starts.map(t => `<option value="${t}">${t}</option>`).join('');
+  endSelect.innerHTML = ends.map(t => `<option value="${t}">${t}</option>`).join('');
+}
+
+function closeDayActionModal() {
+  dayActionModal?.classList.add('hidden');
+  document.body.classList.remove('tutorial-open');
+  dayActionDate = '';
+}
+
+function openDayActionModal(iso) {
+  dayActionDate = iso;
+  const opening = specialOpenings[iso];
+
+  document.getElementById('dayActionTitle').textContent = formatLongDate(iso);
+  document.getElementById('dayActionInfo').textContent = opening
+    ? `Giornata aperta dalle ${opening.start} alle ${opening.end}. Puoi cambiare l’orario o bloccarla di nuovo.`
+    : 'Questa giornata è chiusa. Scegli da che ora a che ora aprirla.';
+
+  document.getElementById('dayActionStart').value = opening ? opening.start : '09:00';
+  document.getElementById('dayActionEnd').value = opening ? opening.end : '13:00';
+  document.getElementById('saveDayActionBtn').textContent = opening ? 'Aggiorna orario' : 'Sblocca giornata';
+  document.getElementById('blockDayActionBtn').classList.toggle('hidden', !opening);
+
+  dayActionModal?.classList.remove('hidden');
+  document.body.classList.add('tutorial-open');
+}
+
+function nextRegularDay(iso) {
+  const date = new Date(`${iso}T12:00:00`);
+  for (let i = 0; i < 8; i++) {
+    date.setDate(date.getDate() + 1);
+    const candidate = localISO(date);
+    if (!isClosedWeekday(candidate) || specialOpenings[candidate]) return candidate;
+  }
+  return iso;
+}
+
+document.getElementById('closeDayAction')?.addEventListener('click', closeDayActionModal);
+dayActionModal?.addEventListener('click', event => {
+  if (event.target === dayActionModal) closeDayActionModal();
+});
+
+document.getElementById('saveDayActionBtn')?.addEventListener('click', async () => {
+  if (!dayActionDate) return;
+  const start = document.getElementById('dayActionStart').value;
+  const end = document.getElementById('dayActionEnd').value;
+  if (end <= start) return alert('L’orario finale deve essere successivo a quello iniziale.');
+
+  const iso = dayActionDate;
+  const { error } = await supabaseClient.rpc('set_admin_special_opening', {
+    p_access_token: customerToken(),
+    p_open_date: iso,
+    p_start_time: start,
+    p_end_time: end
+  });
+
+  if (error) return alert(error.message);
+
+  closeDayActionModal();
+  notify('Giornata sbloccata.', 'success');
+  await loadSpecialOpenings();
+  adminSelectedDate = iso;
+  adminCalendar.setSelected(iso);
+  await renderAdmin();
+});
+
+document.getElementById('blockDayActionBtn')?.addEventListener('click', async () => {
+  if (!dayActionDate) return;
+  if (!confirm('Bloccare di nuovo questa giornata? Le prenotazioni già fissate restano in agenda.')) return;
+
+  const iso = dayActionDate;
+  const { error } = await supabaseClient.rpc('delete_admin_special_opening', {
+    p_access_token: customerToken(),
+    p_open_date: iso
+  });
+
+  if (error) return alert(error.message);
+
+  closeDayActionModal();
+  notify('Giornata bloccata.', 'success');
+  await loadSpecialOpenings();
+  if (adminSelectedDate === iso) {
+    adminSelectedDate = nextRegularDay(iso);
+    adminCalendar.setSelected(adminSelectedDate);
+    await renderAdmin();
+  }
+});
+
+fillDayActionSelects();
 
 fillSpecialOpeningSelects();
 loadSpecialOpenings();
