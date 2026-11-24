@@ -312,8 +312,19 @@
           <p class="eyebrow">APERTURE STRAORDINARIE</p>
           <h3>Abilita una domenica o un lunedì</h3>
           <div class="form-block">
-            <label for="specialOpenDate">Data (domenica o lunedì)</label>
-            <input id="specialOpenDate" type="date" />
+            <label>Scegli la domenica o il lunedì</label>
+            <input id="specialOpenDate" type="hidden" />
+            <div class="calendar-card compact">
+              <div class="calendar-header">
+                <button type="button" class="calendar-nav" id="specialPrevMonth">‹</button>
+                <strong id="specialCalendarTitle"></strong>
+                <button type="button" class="calendar-nav" id="specialNextMonth">›</button>
+              </div>
+              <div class="calendar-weekdays">
+                <span>Lun</span><span>Mar</span><span>Mer</span><span>Gio</span><span>Ven</span><span>Sab</span><span>Dom</span>
+              </div>
+              <div class="calendar-grid" id="specialCalendarGrid"></div>
+            </div>
           </div>
           <div class="form-grid">
             <div class="form-block">
@@ -629,6 +640,29 @@
         <button id="blockSlotBtn" class="secondary-btn full" type="button">Blocca casella</button>
         <button id="unblockSlotBtn" class="secondary-btn full hidden" type="button">Sblocca casella</button>
         <button id="addClientSlotBtn" class="primary-btn full" type="button">Aggiungi cliente</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="dayActionModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="dayActionTitle">
+    <div class="modal-card">
+      <button id="closeDayAction" class="modal-close" type="button" aria-label="Chiudi">×</button>
+      <p class="eyebrow">GESTIONE GIORNATA</p>
+      <h2 id="dayActionTitle">Gestisci giornata</h2>
+      <p id="dayActionInfo" class="notice"></p>
+      <div class="form-grid">
+        <div class="form-block">
+          <label for="dayActionStart">Dalle</label>
+          <select id="dayActionStart"></select>
+        </div>
+        <div class="form-block">
+          <label for="dayActionEnd">Alle</label>
+          <select id="dayActionEnd"></select>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="saveDayActionBtn" class="primary-btn full" type="button">Sblocca giornata</button>
+        <button id="blockDayActionBtn" class="secondary-btn full hidden" type="button">Blocca giornata</button>
       </div>
     </div>
   </div>
